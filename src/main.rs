@@ -1,77 +1,387 @@
+// TODO re-include display code
+// mod display;
+
 #![no_std]
 #![no_main]
 #![feature(type_alias_impl_trait)]
 
-use {defmt_rtt as _, panic_probe as _};
+use defmt_rtt as _; // global logger
+use embassy_nrf as _; // time driver
+use panic_probe as _;
 
-use defmt::unwrap;
+use core::cell::{Cell, RefCell};
+use core::mem;
+
+use defmt::{info, *};
 use embassy_executor::Spawner;
-use embassy_nrf::{bind_interrupts, gpio::{Level, Output, OutputDrive}, peripherals::{P0_14, self}, spim::{self, Spim}};
-use embassy_time::{Duration, Timer};
-use embedded_graphics::{Drawable, prelude::{Primitive, RgbColor}, mono_font::{MonoTextStyle, ascii}, pixelcolor::Rgb565};
+use nrf_softdevice::ble::gatt_server::builder::ServiceBuilder;
+use nrf_softdevice::ble::gatt_server::characteristic::{Attribute, Metadata, Properties};
+use nrf_softdevice::ble::gatt_server::{set_sys_attrs, RegisterError, WriteOp};
+use nrf_softdevice::ble::security::{IoCapabilities, SecurityHandler};
+use nrf_softdevice::ble::{
+    gatt_server, peripheral, Connection, EncryptionInfo, IdentityKey, MasterId, SecurityMode, Uuid, gatt_client, GattValue,
+};
+use nrf_softdevice::{raw, Softdevice};
+use static_cell::StaticCell;
 
-const LCD_W: u16 = 240;
-const LCD_H: u16 = 240;
-
-bind_interrupts!(struct Irqs {
-    SPIM1_SPIS1_TWIM1_TWIS1_SPI1_TWI1 => spim::InterruptHandler<peripherals::TWISPI1>;
-});
-
-#[embassy_executor::main]
-async fn main(spawner: Spawner) {
-    let p = embassy_nrf::init(Default::default());
-
-    let led = Output::new(p.P0_14, Level::Low, OutputDrive::Standard);
-
-
-    let display_spi_config = {
-        let mut c = spim::Config::default();
-
-        c.frequency = spim::Frequency::M8;
-        c.mode = spim::MODE_3;
-
-        c
-    };
-    let display_spi = Spim::new(
-        p.TWISPI1,
-        Irqs,
-        p.P0_02,
-        p.P0_04,
-        p.P0_03,
-        display_spi_config,
-    );
-    let display_dc = Output::new(p.P0_18, Level::Low, OutputDrive::Standard);
-    let display_cs = Output::new(p.P0_25, Level::Low, OutputDrive::Standard);
-    let display_interface = display_interface_spi::SPIInterface::new(display_spi, display_dc, display_cs);
-
-    let mut display = mipidsi::Builder::st7789(display_interface)
-        .with_display_size(LCD_W, LCD_H)
-        .with_orientation(mipidsi::Orientation::Portrait(false))
-        .with_invert_colors(mipidsi::ColorInversion::Inverted)
-        .init(&mut embassy_time::Delay, None::<Output<'static, P0_14>>)
-        .unwrap();
-
-    let backdrop_style = embedded_graphics::primitives::PrimitiveStyleBuilder::new()
-        .fill_color(embedded_graphics::pixelcolor::Rgb565::new(0, 255, 0))
-        .build();
-    embedded_graphics::primitives::Rectangle::new(embedded_graphics::geometry::Point::new(0, 0), embedded_graphics::prelude::Size::new(LCD_W as u32, LCD_H as u32))
-        .into_styled(backdrop_style)
-        .draw(&mut display)
-        .unwrap();
-
-    embedded_graphics::text::Text::new("PineTime", embedded_graphics::prelude::Point::new(10, 10), 
-        MonoTextStyle::new(&ascii::FONT_10X20, Rgb565::WHITE))
-        .draw(&mut display)
-        .unwrap();
-    unwrap!(spawner.spawn(blinker(led, Duration::from_millis(300))));
-}
+const BATTERY_SERVICE: Uuid = Uuid::new_16(0x180f);
+const BATTERY_LEVEL: Uuid = Uuid::new_16(0x2a19);
 
 #[embassy_executor::task]
-async fn blinker(mut led: Output<'static, P0_14>, interval: Duration) {
+async fn softdevice_task(sd: &'static Softdevice) {
+    sd.run().await;
+}
+
+#[derive(Debug, Clone, Copy)]
+struct Peer {
+    master_id: MasterId,
+    key: EncryptionInfo,
+    peer_id: IdentityKey,
+}
+
+pub struct Bonder {
+    peer: Cell<Option<Peer>>,
+    sys_attrs: RefCell<heapless::Vec<u8, 62>>,
+}
+
+impl Default for Bonder {
+    fn default() -> Self {
+        Bonder {
+            peer: Cell::new(None),
+            sys_attrs: Default::default(),
+        }
+    }
+}
+
+impl SecurityHandler for Bonder {
+    fn io_capabilities(&self) -> IoCapabilities {
+        IoCapabilities::None
+    }
+
+    fn can_bond(&self, _conn: &Connection) -> bool {
+        // default was true here, am I breaking something?
+        false
+    }
+
+    fn display_passkey(&self, passkey: &[u8; 6]) {
+        info!("The passkey is \"{:a}\"", passkey)
+    }
+
+    fn on_bonded(&self, _conn: &Connection, master_id: MasterId, key: EncryptionInfo, peer_id: IdentityKey) {
+        debug!("storing bond for: id: {}, key: {}", master_id, key);
+
+        // In a real application you would want to signal another task to permanently store the keys in non-volatile memory here.
+        self.sys_attrs.borrow_mut().clear();
+        self.peer.set(Some(Peer {
+            master_id,
+            key,
+            peer_id,
+        }));
+    }
+
+    fn get_key(&self, _conn: &Connection, master_id: MasterId) -> Option<EncryptionInfo> {
+        debug!("getting bond for: id: {}", master_id);
+
+        self.peer
+            .get()
+            .and_then(|peer| (master_id == peer.master_id).then_some(peer.key))
+    }
+
+    fn save_sys_attrs(&self, conn: &Connection) {
+        debug!("saving system attributes for: {}", conn.peer_address());
+
+        if let Some(peer) = self.peer.get() {
+            if peer.peer_id.is_match(conn.peer_address()) {
+                let mut sys_attrs = self.sys_attrs.borrow_mut();
+                let capacity = sys_attrs.capacity();
+                unwrap!(sys_attrs.resize(capacity, 0));
+                let len = unwrap!(gatt_server::get_sys_attrs(conn, &mut sys_attrs)) as u16;
+                sys_attrs.truncate(usize::from(len));
+                // In a real application you would want to signal another task to permanently store sys_attrs for this connection's peer
+            }
+        }
+    }
+
+    fn load_sys_attrs(&self, conn: &Connection) {
+        let addr = conn.peer_address();
+        debug!("loading system attributes for: {}", addr);
+
+        let attrs = self.sys_attrs.borrow();
+        // In a real application you would search all stored peers to find a match
+        let attrs = if self.peer.get().map(|peer| peer.peer_id.is_match(addr)).unwrap_or(false) {
+            (!attrs.is_empty()).then_some(attrs.as_slice())
+        } else {
+            None
+        };
+
+        unwrap!(set_sys_attrs(conn, attrs));
+    }
+}
+
+pub struct BatteryService {
+    value_handle: u16,
+    cccd_handle: u16,
+}
+
+impl BatteryService {
+    pub fn new(sd: &mut Softdevice) -> Result<Self, RegisterError> {
+        let mut service_builder = ServiceBuilder::new(sd, BATTERY_SERVICE)?;
+
+        let attr = Attribute::new(&[0u8]).security(SecurityMode::JustWorks);
+        let metadata = Metadata::new(Properties::new().read().notify());
+        let characteristic_builder = service_builder.add_characteristic(BATTERY_LEVEL, attr, metadata)?;
+        let characteristic_handles = characteristic_builder.build();
+
+        let _service_handle = service_builder.build();
+
+        Ok(BatteryService {
+            value_handle: characteristic_handles.value_handle,
+            cccd_handle: characteristic_handles.cccd_handle,
+        })
+    }
+
+    pub fn battery_level_get(&self, sd: &Softdevice) -> Result<u8, gatt_server::GetValueError> {
+        let buf = &mut [0u8];
+        gatt_server::get_value(sd, self.value_handle, buf)?;
+        Ok(buf[0])
+    }
+
+    pub fn battery_level_set(&self, sd: &Softdevice, val: u8) -> Result<(), gatt_server::SetValueError> {
+        gatt_server::set_value(sd, self.value_handle, &[val])
+    }
+    pub fn battery_level_notify(&self, conn: &Connection, val: u8) -> Result<(), gatt_server::NotifyValueError> {
+        gatt_server::notify_value(conn, self.value_handle, &[val])
+    }
+
+    pub fn on_write(&self, handle: u16, data: &[u8]) {
+        if handle == self.cccd_handle && !data.is_empty() {
+            info!("battery notifications: {}", (data[0] & 0x01) != 0);
+        }
+    }
+}
+
+struct Server {
+    bas: BatteryService,
+}
+
+impl Server {
+    pub fn new(sd: &mut Softdevice) -> Result<Self, RegisterError> {
+        let bas = BatteryService::new(sd)?;
+
+        Ok(Self { bas })
+    }
+}
+
+impl gatt_server::Server for Server {
+    type Event = ();
+
+    fn on_write(
+        &self,
+        _conn: &Connection,
+        handle: u16,
+        _op: WriteOp,
+        _offset: usize,
+        data: &[u8],
+    ) -> Option<Self::Event> {
+        self.bas.on_write(handle, data);
+        None
+    }
+}
+
+const ATT_PAYLOAD_MAX_LEN: usize = 512;
+
+struct MyVec {
+    data: [u8; ATT_PAYLOAD_MAX_LEN],
+    len: usize,
+}
+
+impl GattValue for MyVec {
+    const MIN_SIZE: usize = 1;
+
+    const MAX_SIZE: usize = ATT_PAYLOAD_MAX_LEN;
+
+    fn from_gatt(data: &[u8]) -> Self {
+        let mut saved_data = [0; ATT_PAYLOAD_MAX_LEN];
+        saved_data[..data.len()].copy_from_slice(data);
+
+        Self {
+            data: saved_data,
+            len: data.len(),
+        }
+    }
+
+    fn to_gatt(&self) -> &[u8] {
+        &self.data[..self.len]
+    }
+}
+
+#[nrf_softdevice::gatt_client(uuid = "89D3502B-0F36-433A-8EF4-C502AD55F8DC")]
+struct AppleMediaServiceClient {
+    #[characteristic(uuid = "9B3C81D8-57B1-4A8A-B8DF-0E56F7CA51C2", write, notify)]
+    remote_command: u8,
+    #[characteristic(uuid = "2F7CABCE-808D-411F-9A0C-BB92BA96C102", write, notify)]
+    entity_update: MyVec,
+}
+
+#[nrf_softdevice::gatt_client(uuid = "180f")]
+struct BatteryServiceClient {
+    #[characteristic(uuid = "2a19", read, write, notify)]
+    battery_level: u8,
+}
+
+#[embassy_executor::main]
+async fn main(spawner: Spawner) -> ! {
+    info!("Hello World!");
+
+    let config = nrf_softdevice::Config {
+        clock: Some(raw::nrf_clock_lf_cfg_t {
+            source: raw::NRF_CLOCK_LF_SRC_RC as u8,
+            rc_ctiv: 16,
+            rc_temp_ctiv: 2,
+            accuracy: raw::NRF_CLOCK_LF_ACCURACY_500_PPM as u8,
+        }),
+        conn_gap: Some(raw::ble_gap_conn_cfg_t {
+            conn_count: 1,
+            event_length: 24,
+        }),
+        conn_gatt: Some(raw::ble_gatt_conn_cfg_t { att_mtu: 527 }),
+        gatts_attr_tab_size: Some(raw::ble_gatts_cfg_attr_tab_size_t { attr_tab_size: 32768 }),
+        gap_role_count: Some(raw::ble_gap_cfg_role_count_t {
+            adv_set_count: 1,
+            periph_role_count: 1,
+            central_role_count: 1,
+            central_sec_count: 1,
+            _bitfield_1: raw::ble_gap_cfg_role_count_t::new_bitfield_1(0),
+        }),
+        gap_device_name: Some(raw::ble_gap_cfg_device_name_t {
+            p_value: b"PineTime" as *const u8 as _,
+            current_len: 8,
+            max_len: 8,
+            write_perm: unsafe { mem::zeroed() },
+            _bitfield_1: raw::ble_gap_cfg_device_name_t::new_bitfield_1(raw::BLE_GATTS_VLOC_STACK as u8),
+        }),
+        ..Default::default()
+    };
+
+    let sd = Softdevice::enable(&config);
+    let server = unwrap!(Server::new(sd));
+    unwrap!(spawner.spawn(softdevice_task(sd)));
+
+    #[rustfmt::skip]
+    let adv_data = &[
+        0x02, 0x01, raw::BLE_GAP_ADV_FLAGS_LE_ONLY_GENERAL_DISC_MODE as u8,
+        0x03, 0x03, 0x0F, 0x18,
+        0x05, 0x09, b'P', b'I', b'N', b'E',
+    ];
+    #[rustfmt::skip]
+    let scan_data = &[
+        0x11, // length
+        0x15, // service soliciation
+        // Apple media service UUID
+        0xDC, 
+        0xF8,
+        0x55,
+        0xAD,
+        0x02,
+        0xC5,
+        0xF4,
+        0x8E,
+        0x3A,
+        0x43,
+        0x36,
+        0x0F,
+        0x2B,
+        0x50,
+        0xD3,
+        0x89,
+    ];
+
+    static BONDER: StaticCell<Bonder> = StaticCell::new();
+    let bonder = BONDER.init(Bonder::default());
+
     loop {
-        led.set_high();
-        Timer::after(interval).await;
-        led.set_low();
-        Timer::after(interval).await;
+        let config = peripheral::Config::default();
+        let adv = peripheral::ConnectableAdvertisement::ScannableUndirected { adv_data, scan_data };
+        let conn = unwrap!(peripheral::advertise_pairable(sd, adv, &config, bonder).await);
+
+        unwrap!(spawner.spawn(task_gatt_client(conn.clone())));
+
+        // Run the GATT server on the connection. This returns when the connection gets disconnected.
+        let e = gatt_server::run(&conn.clone(), &server, |_| {
+            // Do nothing
+        }).await;
+        info!("gatt_server run exited with error: {:?}", e);
+    }
+}
+
+const ENTITY_ID_TRACK: u8 = 2;
+const TRACK_ATTRIBUTE_ID_ARTIST: u8 = 0;
+const TRACK_ATTRIBUTE_ID_ALBUM: u8 = 1;
+const TRACK_ATTRIBUTE_ID_TITLE: u8 = 2;
+
+#[embassy_executor::task]
+async fn task_gatt_client(conn: Connection) {
+    loop {
+        let client: BatteryServiceClient = unwrap!(gatt_client::discover(&conn).await);
+        let e = client.battery_level_read().await;
+        info!("response {:?}", e);
+
+        if e.is_ok() {
+            break;
+        }
+    }
+
+    loop {
+        let client: AppleMediaServiceClient = unwrap!(gatt_client::discover(&conn).await);
+        // let e = client.remote_command_write(&2).await;
+        // info!("response {:?}", e);
+
+        client.remote_command_cccd_write(true).await.unwrap();
+        client.entity_update_cccd_write(true).await.unwrap();
+
+        let mut a = [0;ATT_PAYLOAD_MAX_LEN];
+        a[0] = ENTITY_ID_TRACK;
+        a[1] = TRACK_ATTRIBUTE_ID_ARTIST;
+        a[2] = TRACK_ATTRIBUTE_ID_ALBUM;
+        a[3] = TRACK_ATTRIBUTE_ID_TITLE;
+        let e = client.entity_update_write(&MyVec {data: a, len: 4}).await;
+        info!("entity_update write response {:?}", e);
+
+        if e.is_ok() {
+            gatt_client::run(&conn, &client, |event| match event {
+                AppleMediaServiceClientEvent::EntityUpdateNotification(val) => {
+                    let entity_id = val.data[0];
+                    match entity_id {
+                        2 => {
+                            let attribute_id = val.data[1];
+                            // These flags include a bool indicating the value was truncated
+                            // but for now we ignore this
+                            // let entity_update_flags = val.data[2];
+                            let value = &val.data[3..val.len];
+
+                            if let Ok(value_as_str) =  core::str::from_utf8(value) {
+                                let attribute = match attribute_id {
+                                    0 => "artist",
+                                    1 => "album",
+                                    2 => "title",
+                                    3 => "duration",
+                                    _ => "unknown",
+                                };
+
+                                info!("{}: {}", attribute, value_as_str);
+                            } else {
+                                info!("invalid utf8 received");
+                            }
+                        },
+                        _ => info!("unknown entity ID"),
+                    };
+
+                },
+                AppleMediaServiceClientEvent::RemoteCommandNotification(val) => {
+                    info!("remote command notification: {}", val);
+                },
+            })
+            .await;
+        }
     }
 }
