@@ -83,7 +83,7 @@ pub async fn task(p: embassy_nrf::Peripherals) {
     loop {
         let AppleMediaServiceData { artist, title, .. } = APPLE_MEDIA_SERVICE_DATA.wait().await;
 
-        for (text, text_y_pos) in [(title, 20), (artist, 40)] {
+        for (mut text, text_y_pos) in [(title.as_str(), 20), (artist.as_str(), 40)] {
             // clearing out the old text
             embedded_graphics::primitives::Rectangle::new(
                 embedded_graphics::geometry::Point::new(0, text_y_pos),
@@ -93,9 +93,17 @@ pub async fn task(p: embassy_nrf::Peripherals) {
             .draw(&mut display)
             .unwrap();
 
+            // Truncate the text length to fit the screen. We should do
+            // something better here eventually.
+            let char_width = 10;
+            let max_chars = (LCD_W / char_width) as usize;
+            if text.len() > max_chars {
+                text = &text[0..max_chars];
+            }
+
             // writing new text
             embedded_graphics::text::Text::with_text_style(
-                text.as_str(),
+                text,
                 embedded_graphics::prelude::Point::new(10, text_y_pos),
                 character_style,
                 text_style,

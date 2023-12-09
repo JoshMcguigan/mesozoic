@@ -6,3 +6,7 @@ target = "thumbv7em-none-eabihf"
 
 [env]
 DEFMT_LOG = "info"
+
+[profile.dev]
+# Non optimized builds can cause time deadline misses on embedded targets.
+opt-level = 3
