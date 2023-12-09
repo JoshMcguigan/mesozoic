@@ -1,5 +1,4 @@
-use core::cell::{Cell, RefCell};
-use core::mem;
+use core::{cell::{Cell, RefCell}, mem};
 
 use defmt::{debug, info, unwrap};
 use embassy_executor::{SendSpawner, Spawner};
@@ -13,6 +12,8 @@ use nrf_softdevice::ble::{
 };
 use nrf_softdevice::{raw, Softdevice};
 use static_cell::StaticCell;
+
+use crate::BLE_ARTIST;
 
 pub struct TaskParams {
     sd: &'static Softdevice,
@@ -293,7 +294,13 @@ pub async fn task_gatt_client(conn: Connection) {
 
                             if let Ok(value_as_str) = core::str::from_utf8(value) {
                                 let attribute = match attribute_id {
-                                    0 => "artist",
+                                    0 => {
+                                        BLE_ARTIST.signal(
+                                            arrayvec::ArrayString::<256>::from(value_as_str)
+                                                .unwrap(),
+                                        );
+                                        "artist"
+                                    }
                                     1 => "album",
                                     2 => "title",
                                     3 => "duration",

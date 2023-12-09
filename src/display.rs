@@ -11,6 +11,8 @@ use embedded_graphics::{
     Drawable,
 };
 
+use crate::BLE_ARTIST;
+
 const LCD_W: u16 = 240;
 const LCD_H: u16 = 240;
 
@@ -54,7 +56,7 @@ pub async fn task(p: embassy_nrf::Peripherals) {
         .unwrap();
 
     let backdrop_style = embedded_graphics::primitives::PrimitiveStyleBuilder::new()
-        .fill_color(embedded_graphics::pixelcolor::Rgb565::new(0, 255, 0))
+        .fill_color(embedded_graphics::pixelcolor::Rgb565::BLACK)
         .build();
     embedded_graphics::primitives::Rectangle::new(
         embedded_graphics::geometry::Point::new(0, 0),
@@ -64,11 +66,40 @@ pub async fn task(p: embassy_nrf::Peripherals) {
     .draw(&mut display)
     .unwrap();
 
-    embedded_graphics::text::Text::new(
+    let character_style = MonoTextStyle::new(&ascii::FONT_10X20, Rgb565::WHITE);
+    let text_style = embedded_graphics::text::TextStyleBuilder::new()
+        .baseline(embedded_graphics::text::Baseline::Top)
+        .build();
+
+    embedded_graphics::text::Text::with_text_style(
         "PineTime",
-        embedded_graphics::prelude::Point::new(10, 10),
-        MonoTextStyle::new(&ascii::FONT_10X20, Rgb565::WHITE),
+        embedded_graphics::prelude::Point::new(10, 0),
+        character_style,
+        text_style,
     )
     .draw(&mut display)
     .unwrap();
+
+    loop {
+        let signal = BLE_ARTIST.wait().await;
+
+        // clearing out the old text
+        embedded_graphics::primitives::Rectangle::new(
+            embedded_graphics::geometry::Point::new(0, 20),
+            embedded_graphics::prelude::Size::new(LCD_W as u32, 20),
+        )
+        .into_styled(backdrop_style)
+        .draw(&mut display)
+        .unwrap();
+
+        // writing new text
+        embedded_graphics::text::Text::with_text_style(
+            signal.as_str(),
+            embedded_graphics::prelude::Point::new(10, 20),
+            character_style,
+            text_style,
+        )
+        .draw(&mut display)
+        .unwrap();
+    }
 }
