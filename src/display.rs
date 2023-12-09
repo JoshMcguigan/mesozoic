@@ -11,7 +11,7 @@ use embedded_graphics::{
     Drawable,
 };
 
-use crate::BLE_ARTIST;
+use crate::ble::{APPLE_MEDIA_SERVICE_DATA, AppleMediaServiceData};
 
 const LCD_W: u16 = 240;
 const LCD_H: u16 = 240;
@@ -81,25 +81,27 @@ pub async fn task(p: embassy_nrf::Peripherals) {
     .unwrap();
 
     loop {
-        let signal = BLE_ARTIST.wait().await;
+        let AppleMediaServiceData { artist, title, .. } = APPLE_MEDIA_SERVICE_DATA.wait().await;
 
-        // clearing out the old text
-        embedded_graphics::primitives::Rectangle::new(
-            embedded_graphics::geometry::Point::new(0, 20),
-            embedded_graphics::prelude::Size::new(LCD_W as u32, 20),
-        )
-        .into_styled(backdrop_style)
-        .draw(&mut display)
-        .unwrap();
+        for (text, text_y_pos) in [(title, 20), (artist, 40)] {
+            // clearing out the old text
+            embedded_graphics::primitives::Rectangle::new(
+                embedded_graphics::geometry::Point::new(0, text_y_pos),
+                embedded_graphics::prelude::Size::new(LCD_W as u32, text_y_pos as u32),
+            )
+            .into_styled(backdrop_style)
+            .draw(&mut display)
+            .unwrap();
 
-        // writing new text
-        embedded_graphics::text::Text::with_text_style(
-            signal.as_str(),
-            embedded_graphics::prelude::Point::new(10, 20),
-            character_style,
-            text_style,
-        )
-        .draw(&mut display)
-        .unwrap();
+            // writing new text
+            embedded_graphics::text::Text::with_text_style(
+                text.as_str(),
+                embedded_graphics::prelude::Point::new(10, text_y_pos),
+                character_style,
+                text_style,
+            )
+            .draw(&mut display)
+            .unwrap();
+        }
     }
 }

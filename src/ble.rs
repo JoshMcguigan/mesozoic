@@ -13,7 +13,18 @@ use nrf_softdevice::ble::{
 use nrf_softdevice::{raw, Softdevice};
 use static_cell::StaticCell;
 
-use crate::BLE_ARTIST;
+pub static APPLE_MEDIA_SERVICE_DATA: embassy_sync::signal::Signal<
+    embassy_sync::blocking_mutex::raw::ThreadModeRawMutex,
+    AppleMediaServiceData,
+> = embassy_sync::signal::Signal::new();
+
+pub struct AppleMediaServiceData {
+    pub artist: AppleMediaServiceString,
+    pub album: AppleMediaServiceString,
+    pub title: AppleMediaServiceString,
+}
+
+type AppleMediaServiceString = arrayvec::ArrayString<ATT_PAYLOAD_MAX_LEN>;
 
 pub struct TaskParams {
     sd: &'static Softdevice,
@@ -208,6 +219,7 @@ impl gatt_server::Server for Server {
 
 const ATT_PAYLOAD_MAX_LEN: usize = 512;
 
+// TODO replace this with ArrayVec?
 struct MyVec {
     data: [u8; ATT_PAYLOAD_MAX_LEN],
     len: usize,
@@ -280,6 +292,9 @@ pub async fn task_gatt_client(conn: Connection) {
         let e = client.entity_update_write(&MyVec { data: a, len: 4 }).await;
         info!("entity_update write response {:?}", e);
 
+        let mut artist = AppleMediaServiceString::new();
+        let mut album = AppleMediaServiceString::new();
+        let mut title = AppleMediaServiceString::new();
         if e.is_ok() {
             gatt_client::run(&conn, &client, |event| match event {
                 AppleMediaServiceClientEvent::EntityUpdateNotification(val) => {
@@ -295,14 +310,29 @@ pub async fn task_gatt_client(conn: Connection) {
                             if let Ok(value_as_str) = core::str::from_utf8(value) {
                                 let attribute = match attribute_id {
                                     0 => {
-                                        BLE_ARTIST.signal(
-                                            arrayvec::ArrayString::<256>::from(value_as_str)
-                                                .unwrap(),
-                                        );
+                                        // TODO move this from up above to handle
+                                        // the error as we do with fromutf8
+                                        artist = AppleMediaServiceString::from(value_as_str).unwrap();
                                         "artist"
                                     }
-                                    1 => "album",
-                                    2 => "title",
+                                    1 => {
+                                        // TODO move this from up above to handle
+                                        // the error as we do with fromutf8
+                                        album = AppleMediaServiceString::from(value_as_str).unwrap();
+                                        "album"
+                                    },
+                                    2 => {
+                                        // TODO move this from up above to handle
+                                        // the error as we do with fromutf8
+                                        title = AppleMediaServiceString::from(value_as_str).unwrap();
+                                        APPLE_MEDIA_SERVICE_DATA.signal(
+                                            AppleMediaServiceData { artist, album, title }
+                                        );
+                                        // TODO may want to clear the data here so we don't
+                                        // accidentally send stale data
+
+                                        "title"
+                                    },
                                     3 => "duration",
                                     _ => "unknown",
                                 };
