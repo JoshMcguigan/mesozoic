@@ -68,7 +68,7 @@ pub async fn task(
         let starting_addr = 0;
         let mut buf = [0u8; 7];
         unwrap!(
-            twi.write_read(TOUCH_CONTROLLER_ADDR, &mut [starting_addr], &mut buf)
+            twi.write_read(TOUCH_CONTROLLER_ADDR, &[starting_addr], &mut buf)
                 .await
         );
 

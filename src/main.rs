@@ -13,6 +13,7 @@ mod backlight;
 mod ble;
 mod button;
 mod display;
+mod haptics;
 mod nrf;
 mod touch;
 
@@ -26,5 +27,6 @@ async fn main(spawner: Spawner) {
     unwrap!(spawner.spawn(display::task(
         p.P0_18, p.P0_25, p.TWISPI1, p.P0_02, p.P0_04, p.P0_03
     )));
+    unwrap!(spawner.spawn(haptics::task(p.P0_16)));
     unwrap!(spawner.spawn(touch::task(p.P0_10, p.P0_28, p.TWISPI0, p.P0_06, p.P0_07)));
 }
