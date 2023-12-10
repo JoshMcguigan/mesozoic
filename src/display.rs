@@ -1,7 +1,7 @@
 use embassy_nrf::{
     bind_interrupts,
     gpio::{Level, Output, OutputDrive},
-    peripherals::{self, P0_14},
+    peripherals::{P0_02, P0_03, P0_04, P0_14, P0_18, P0_25, TWISPI1},
     spim::{self, Spim},
 };
 use embedded_graphics::{
@@ -11,20 +11,32 @@ use embedded_graphics::{
     Drawable,
 };
 
-use crate::ble::{APPLE_MEDIA_SERVICE_DATA, AppleMediaServiceData};
+use crate::ble::{AppleMediaServiceData, APPLE_MEDIA_SERVICE_DATA};
 
 const LCD_W: u16 = 240;
 const LCD_H: u16 = 240;
 
 bind_interrupts!(struct Irqs {
-    SPIM1_SPIS1_TWIM1_TWIS1_SPI1_TWI1 => spim::InterruptHandler<peripherals::TWISPI1>;
+    SPIM1_SPIS1_TWIM1_TWIS1_SPI1_TWI1 => spim::InterruptHandler<TWISPI1>;
 });
 
 #[embassy_executor::task]
-pub async fn task(p: embassy_nrf::Peripherals) {
+pub async fn task(
+    backlight_pin: P0_14,
+    dc_pin: P0_18,
+    cs_pin: P0_25,
+    spim: TWISPI1,
+    sck_pin: P0_02,
+    miso_pin: P0_04,
+    mosi_pin: P0_03,
+) {
     // Turn on the backlight, then `forget` this pin to skip the drop implementation
     // which resets the configuration.
-    core::mem::forget(Output::new(p.P0_14, Level::Low, OutputDrive::Standard));
+    core::mem::forget(Output::new(
+        backlight_pin,
+        Level::Low,
+        OutputDrive::Standard,
+    ));
 
     let display_spi_config = {
         let mut c = spim::Config::default();
@@ -34,17 +46,10 @@ pub async fn task(p: embassy_nrf::Peripherals) {
 
         c
     };
-    let display_spi = Spim::new(
-        p.TWISPI1,
-        Irqs,
-        p.P0_02,
-        p.P0_04,
-        p.P0_03,
-        display_spi_config,
-    );
+    let display_spi = Spim::new(spim, Irqs, sck_pin, miso_pin, mosi_pin, display_spi_config);
 
-    let display_dc = Output::new(p.P0_18, Level::Low, OutputDrive::Standard);
-    let display_cs = Output::new(p.P0_25, Level::Low, OutputDrive::Standard);
+    let display_dc = Output::new(dc_pin, Level::Low, OutputDrive::Standard);
+    let display_cs = Output::new(cs_pin, Level::Low, OutputDrive::Standard);
     let display_interface =
         display_interface_spi::SPIInterface::new(display_spi, display_dc, display_cs);
 

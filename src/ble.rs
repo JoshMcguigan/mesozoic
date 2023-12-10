@@ -1,4 +1,7 @@
-use core::{cell::{Cell, RefCell}, mem};
+use core::{
+    cell::{Cell, RefCell},
+    mem,
+};
 
 use defmt::{debug, info, unwrap};
 use embassy_executor::{SendSpawner, Spawner};
@@ -312,27 +315,32 @@ pub async fn task_gatt_client(conn: Connection) {
                                     0 => {
                                         // TODO move this from up above to handle
                                         // the error as we do with fromutf8
-                                        artist = AppleMediaServiceString::from(value_as_str).unwrap();
+                                        artist =
+                                            AppleMediaServiceString::from(value_as_str).unwrap();
                                         "artist"
                                     }
                                     1 => {
                                         // TODO move this from up above to handle
                                         // the error as we do with fromutf8
-                                        album = AppleMediaServiceString::from(value_as_str).unwrap();
+                                        album =
+                                            AppleMediaServiceString::from(value_as_str).unwrap();
                                         "album"
-                                    },
+                                    }
                                     2 => {
                                         // TODO move this from up above to handle
                                         // the error as we do with fromutf8
-                                        title = AppleMediaServiceString::from(value_as_str).unwrap();
-                                        APPLE_MEDIA_SERVICE_DATA.signal(
-                                            AppleMediaServiceData { artist, album, title }
-                                        );
+                                        title =
+                                            AppleMediaServiceString::from(value_as_str).unwrap();
+                                        APPLE_MEDIA_SERVICE_DATA.signal(AppleMediaServiceData {
+                                            artist,
+                                            album,
+                                            title,
+                                        });
                                         // TODO may want to clear the data here so we don't
                                         // accidentally send stale data
 
                                         "title"
-                                    },
+                                    }
                                     3 => "duration",
                                     _ => "unknown",
                                 };
