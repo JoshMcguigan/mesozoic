@@ -11,6 +11,7 @@ use embassy_executor::Spawner;
 
 mod backlight;
 mod ble;
+mod button;
 mod display;
 mod nrf;
 mod touch;
@@ -21,6 +22,7 @@ async fn main(spawner: Spawner) {
 
     unwrap!(spawner.spawn(backlight::task(p.P0_14, p.P0_22, p.P0_23)));
     unwrap!(spawner.spawn(ble::task(ble::init(&spawner).await)));
+    unwrap!(spawner.spawn(button::task(p.P0_13, p.P0_15)));
     unwrap!(spawner.spawn(display::task(
         p.P0_18, p.P0_25, p.TWISPI1, p.P0_02, p.P0_04, p.P0_03
     )));
