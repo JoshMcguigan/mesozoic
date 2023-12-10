@@ -65,8 +65,12 @@ pub async fn task(
         );
 
         // TODO all unwraps here should be replaced with proper error handling
+        let starting_addr = 0;
         let mut buf = [0u8; 7];
-        unwrap!(twi.read(TOUCH_CONTROLLER_ADDR, &mut buf).await);
+        unwrap!(
+            twi.write_read(TOUCH_CONTROLLER_ADDR, &mut [starting_addr], &mut buf)
+                .await
+        );
 
         let touch_event = TouchEvent {
             gesture: unwrap!(buf[1].try_into()),
