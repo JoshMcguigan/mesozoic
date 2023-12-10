@@ -22,7 +22,6 @@ bind_interrupts!(struct Irqs {
 
 #[embassy_executor::task]
 pub async fn task(
-    backlight_pin: P0_14,
     dc_pin: P0_18,
     cs_pin: P0_25,
     spim: TWISPI1,
@@ -30,14 +29,6 @@ pub async fn task(
     miso_pin: P0_04,
     mosi_pin: P0_03,
 ) {
-    // Turn on the backlight, then `forget` this pin to skip the drop implementation
-    // which resets the configuration.
-    core::mem::forget(Output::new(
-        backlight_pin,
-        Level::Low,
-        OutputDrive::Standard,
-    ));
-
     let display_spi_config = {
         let mut c = spim::Config::default();
 
