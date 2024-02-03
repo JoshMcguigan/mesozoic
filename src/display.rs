@@ -1,3 +1,4 @@
+use embassy_futures::select::{select, Either};
 use embassy_nrf::{
     bind_interrupts,
     gpio::{Level, Output, OutputDrive},
@@ -5,13 +6,10 @@ use embassy_nrf::{
     spim::{self, Spim},
 };
 use embedded_graphics::{
-    mono_font::{ascii, MonoTextStyle},
-    pixelcolor::Rgb565,
-    prelude::{Primitive, RgbColor},
-    Drawable,
+    draw_target::DrawTarget, geometry::{Point, Size}, mono_font::{ascii, MonoTextStyle}, pixelcolor::Rgb565, prelude::{Primitive, RgbColor}, primitives::PrimitiveStyleBuilder, Drawable
 };
 
-use crate::ble::{AppleMediaServiceData, APPLE_MEDIA_SERVICE_DATA};
+use crate::{battery::{BatteryData, BATTERY_DATA}, ble::{AppleMediaServiceData, APPLE_MEDIA_SERVICE_DATA}};
 
 const LCD_W: u16 = 240;
 const LCD_H: u16 = 240;
@@ -77,35 +75,62 @@ pub async fn task(
     .unwrap();
 
     loop {
-        let AppleMediaServiceData { artist, title, .. } = APPLE_MEDIA_SERVICE_DATA.wait().await;
+        match select(APPLE_MEDIA_SERVICE_DATA.wait(), BATTERY_DATA.wait()).await {
+            Either::First(AppleMediaServiceData { artist, title, .. }) => {
+                for (mut text, text_y_pos) in [(title.as_str(), 20), (artist.as_str(), 40)] {
+                    // clearing out the old text
+                    embedded_graphics::primitives::Rectangle::new(
+                        embedded_graphics::geometry::Point::new(0, text_y_pos),
+                        embedded_graphics::prelude::Size::new(LCD_W as u32, text_y_pos as u32),
+                    )
+                    .into_styled(backdrop_style)
+                    .draw(&mut display)
+                    .unwrap();
 
-        for (mut text, text_y_pos) in [(title.as_str(), 20), (artist.as_str(), 40)] {
-            // clearing out the old text
-            embedded_graphics::primitives::Rectangle::new(
-                embedded_graphics::geometry::Point::new(0, text_y_pos),
-                embedded_graphics::prelude::Size::new(LCD_W as u32, text_y_pos as u32),
-            )
-            .into_styled(backdrop_style)
-            .draw(&mut display)
-            .unwrap();
+                    // Truncate the text length to fit the screen. We should do
+                    // something better here eventually.
+                    let char_width = 10;
+                    let max_chars = (LCD_W / char_width) as usize;
+                    if text.len() > max_chars {
+                        text = &text[0..max_chars];
+                    }
 
-            // Truncate the text length to fit the screen. We should do
-            // something better here eventually.
-            let char_width = 10;
-            let max_chars = (LCD_W / char_width) as usize;
-            if text.len() > max_chars {
-                text = &text[0..max_chars];
+                    // writing new text
+                    embedded_graphics::text::Text::with_text_style(
+                        text,
+                        embedded_graphics::prelude::Point::new(10, text_y_pos),
+                        character_style,
+                        text_style,
+                    )
+                    .draw(&mut display)
+                    .unwrap();
+                }
+            },
+            Either::Second(BatteryData { charging }) => {
+                // The battery task immediately signals this event on startup so we
+                // don't need to draw the battery un-conditionally on startup.
+                draw_battery(&mut display, charging).unwrap();
             }
-
-            // writing new text
-            embedded_graphics::text::Text::with_text_style(
-                text,
-                embedded_graphics::prelude::Point::new(10, text_y_pos),
-                character_style,
-                text_style,
-            )
-            .draw(&mut display)
-            .unwrap();
-        }
+        };
     }
+}
+
+fn draw_battery<D>(display: &mut D, charging: bool) -> Result<(), D::Error> 
+    where
+        D: DrawTarget<Color=Rgb565>,
+{
+    let fill_color = match charging {
+        true => Rgb565::GREEN,
+        false => Rgb565::RED,
+    };
+    embedded_graphics::primitives::Rectangle::new(
+        Point::new(200, 0), Size::new(32, 16))
+            .into_styled(
+                PrimitiveStyleBuilder::new()
+                    .stroke_width(2)
+                    .stroke_color(Rgb565::WHITE)
+                    .fill_color(fill_color)
+                    .build(),
+    )
+    .draw(display)
 }

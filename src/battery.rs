@@ -14,8 +14,13 @@ pub async fn task(charging_indication_pin: P0_12, _battery_voltage_pin: P0_31) {
     let mut charging_indication_input = Input::new(charging_indication_pin, Pull::None);
 
     loop {
-        charging_indication_input.wait_for_any_edge().await;
+        // We want to share battery data immediately rather than waiting for the
+        // first change, so we wait_for_any_edge only after the first time we signal
+        // the data.
 
-        BATTERY_DATA.signal(BatteryData { charging: charging_indication_input.is_high() });
+        // Charging indication is inverted, low means the battery is charging.
+        BATTERY_DATA.signal(BatteryData { charging: charging_indication_input.is_low() });
+
+        charging_indication_input.wait_for_any_edge().await;
     }
 }

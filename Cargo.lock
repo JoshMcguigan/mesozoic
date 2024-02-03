@@ -32,6 +32,7 @@ dependencies = [
  "defmt-rtt",
  "display-interface-spi",
  "embassy-executor",
+ "embassy-futures 0.1.1 (git+https://github.com/embassy-rs/embassy)",
  "embassy-nrf",
  "embassy-sync 0.5.0 (git+https://github.com/embassy-rs/embassy)",
  "embassy-time",
