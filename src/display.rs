@@ -1,4 +1,5 @@
-use embassy_futures::select::{select, Either};
+use arrayvec::ArrayString;
+use embassy_futures::select::{select3, Either3};
 use embassy_nrf::{
     bind_interrupts,
     gpio::{Level, Output, OutputDrive},
@@ -15,9 +16,11 @@ use embedded_graphics::{
     Drawable,
 };
 
+use core::fmt::Write;
+
 use crate::{
     battery::{BatteryData, BATTERY_DATA},
-    ble::{AppleMediaServiceData, APPLE_MEDIA_SERVICE_DATA},
+    ble::{AppleMediaServiceData, CurrentTime, APPLE_MEDIA_SERVICE_DATA, TIME_SERVICE_DATA},
 };
 
 const LCD_W: u16 = 240;
@@ -84,8 +87,14 @@ pub async fn task(
     .unwrap();
 
     loop {
-        match select(APPLE_MEDIA_SERVICE_DATA.wait(), BATTERY_DATA.wait()).await {
-            Either::First(AppleMediaServiceData { artist, title, .. }) => {
+        match select3(
+            APPLE_MEDIA_SERVICE_DATA.wait(),
+            BATTERY_DATA.wait(),
+            TIME_SERVICE_DATA.wait(),
+        )
+        .await
+        {
+            Either3::First(AppleMediaServiceData { artist, title, .. }) => {
                 for (mut text, text_y_pos) in [(title.as_str(), 20), (artist.as_str(), 40)] {
                     // clearing out the old text
                     embedded_graphics::primitives::Rectangle::new(
@@ -115,10 +124,15 @@ pub async fn task(
                     .unwrap();
                 }
             }
-            Either::Second(BatteryData { charging }) => {
+            Either3::Second(BatteryData { charging }) => {
                 // The battery task immediately signals this event on startup so we
                 // don't need to draw the battery un-conditionally on startup.
                 draw_battery(&mut display, charging).unwrap();
+            }
+            Either3::Third(current_time) => {
+                // The ble task signals this event on ble connection so we
+                // don't need to draw the time un-conditionally on startup.
+                draw_time(&mut display, current_time).unwrap();
             }
         };
     }
@@ -141,4 +155,32 @@ where
                 .build(),
         )
         .draw(display)
+}
+
+fn draw_time<D>(display: &mut D, time: CurrentTime) -> Result<Point, D::Error>
+where
+    D: DrawTarget<Color = Rgb565>,
+{
+    let character_style = MonoTextStyle::new(&ascii::FONT_10X20, Rgb565::WHITE);
+    let text_style = embedded_graphics::text::TextStyleBuilder::new()
+        .baseline(embedded_graphics::text::Baseline::Top)
+        .build();
+
+    let mut time_string = ArrayString::<20>::new();
+    // This unwrap is safe because we can tell statically that we've allocated more characters
+    // than this string could ever be.
+    write!(
+        &mut time_string,
+        "{}:{}:{}",
+        time.hours, time.minutes, time.seconds
+    )
+    .unwrap();
+
+    embedded_graphics::text::Text::with_text_style(
+        time_string.as_str(),
+        Point::new(10, 200),
+        character_style,
+        text_style,
+    )
+    .draw(display)
 }
