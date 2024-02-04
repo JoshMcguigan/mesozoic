@@ -21,6 +21,11 @@ pub static APPLE_MEDIA_SERVICE_DATA: embassy_sync::signal::Signal<
     AppleMediaServiceData,
 > = embassy_sync::signal::Signal::new();
 
+pub static TIME_SERVICE_DATA: embassy_sync::signal::Signal<
+    embassy_sync::blocking_mutex::raw::ThreadModeRawMutex,
+    CurrentTime,
+> = embassy_sync::signal::Signal::new();
+
 pub struct AppleMediaServiceData {
     pub artist: AppleMediaServiceString,
     pub album: AppleMediaServiceString,
@@ -269,17 +274,16 @@ struct TimeServiceClient {
 }
 
 #[derive(defmt::Format)]
-struct CurrentTime {
-    year_lsb: u8,
-    year_msb: u8,
-    month: u8,
-    day: u8,
-    hours: u8,
-    minutes: u8,
-    seconds: u8,
-    day_of_week: u8,
-    fractions_256: u8,
-    adjust_reason: u8,
+pub struct CurrentTime {
+    pub year: u16,
+    pub month: u8,
+    pub day: u8,
+    pub hours: u8,
+    pub minutes: u8,
+    pub seconds: u8,
+    pub day_of_week: u8,
+    pub fractions_256: u8,
+    pub adjust_reason: u8,
 }
 
 impl GattValue for CurrentTime {
@@ -289,8 +293,9 @@ impl GattValue for CurrentTime {
 
     fn from_gatt(data: &[u8]) -> Self {
         Self {
-            year_lsb: data[0],
-            year_msb: data[1],
+            // This unwrap is safe because we know statically that we've
+            // passed in a slice of length 2.
+            year: u16::from_le_bytes(data[0..2].try_into().unwrap()),
             month: data[2],
             day: data[3],
             hours: data[4],
@@ -329,11 +334,11 @@ pub async fn task_gatt_client(conn: Connection) {
         let e = client.current_time_read().await;
         info!("response {:?}", e);
 
-        // TODO
-        // send this response to the display
-        // listen for notifications to this in parallel to apple media service
+        // iOS doesn't seem to send many notifications for the time service, so
+        // for now we only send along the first value received rather than subscribe.
 
-        if e.is_ok() {
+        if let Ok(current_time) = e {
+            TIME_SERVICE_DATA.signal(current_time);
             break;
         }
     }

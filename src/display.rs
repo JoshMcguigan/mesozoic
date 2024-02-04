@@ -6,10 +6,19 @@ use embassy_nrf::{
     spim::{self, Spim},
 };
 use embedded_graphics::{
-    draw_target::DrawTarget, geometry::{Point, Size}, mono_font::{ascii, MonoTextStyle}, pixelcolor::Rgb565, prelude::{Primitive, RgbColor}, primitives::PrimitiveStyleBuilder, Drawable
+    draw_target::DrawTarget,
+    geometry::{Point, Size},
+    mono_font::{ascii, MonoTextStyle},
+    pixelcolor::Rgb565,
+    prelude::{Primitive, RgbColor},
+    primitives::PrimitiveStyleBuilder,
+    Drawable,
 };
 
-use crate::{battery::{BatteryData, BATTERY_DATA}, ble::{AppleMediaServiceData, APPLE_MEDIA_SERVICE_DATA}};
+use crate::{
+    battery::{BatteryData, BATTERY_DATA},
+    ble::{AppleMediaServiceData, APPLE_MEDIA_SERVICE_DATA},
+};
 
 const LCD_W: u16 = 240;
 const LCD_H: u16 = 240;
@@ -105,7 +114,7 @@ pub async fn task(
                     .draw(&mut display)
                     .unwrap();
                 }
-            },
+            }
             Either::Second(BatteryData { charging }) => {
                 // The battery task immediately signals this event on startup so we
                 // don't need to draw the battery un-conditionally on startup.
@@ -115,22 +124,21 @@ pub async fn task(
     }
 }
 
-fn draw_battery<D>(display: &mut D, charging: bool) -> Result<(), D::Error> 
-    where
-        D: DrawTarget<Color=Rgb565>,
+fn draw_battery<D>(display: &mut D, charging: bool) -> Result<(), D::Error>
+where
+    D: DrawTarget<Color = Rgb565>,
 {
     let fill_color = match charging {
         true => Rgb565::GREEN,
         false => Rgb565::RED,
     };
-    embedded_graphics::primitives::Rectangle::new(
-        Point::new(200, 0), Size::new(32, 16))
-            .into_styled(
-                PrimitiveStyleBuilder::new()
-                    .stroke_width(2)
-                    .stroke_color(Rgb565::WHITE)
-                    .fill_color(fill_color)
-                    .build(),
-    )
-    .draw(display)
+    embedded_graphics::primitives::Rectangle::new(Point::new(200, 0), Size::new(32, 16))
+        .into_styled(
+            PrimitiveStyleBuilder::new()
+                .stroke_width(2)
+                .stroke_color(Rgb565::WHITE)
+                .fill_color(fill_color)
+                .build(),
+        )
+        .draw(display)
 }
