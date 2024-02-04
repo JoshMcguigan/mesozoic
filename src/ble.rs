@@ -262,6 +262,51 @@ struct BatteryServiceClient {
     battery_level: u8,
 }
 
+#[nrf_softdevice::gatt_client(uuid = "1805")]
+struct TimeServiceClient {
+    #[characteristic(uuid = "2a2b", read, notify)]
+    current_time: CurrentTime,
+}
+
+#[derive(defmt::Format)]
+struct CurrentTime {
+    year_lsb: u8,
+    year_msb: u8,
+    month: u8,
+    day: u8,
+    hours: u8,
+    minutes: u8,
+    seconds: u8,
+    day_of_week: u8,
+    fractions_256: u8,
+    adjust_reason: u8,
+}
+
+impl GattValue for CurrentTime {
+    const MIN_SIZE: usize = 10;
+
+    const MAX_SIZE: usize = 10;
+
+    fn from_gatt(data: &[u8]) -> Self {
+        Self {
+            year_lsb: data[0],
+            year_msb: data[1],
+            month: data[2],
+            day: data[3],
+            hours: data[4],
+            minutes: data[5],
+            seconds: data[6],
+            day_of_week: data[7],
+            fractions_256: data[8],
+            adjust_reason: data[9],
+        }
+    }
+
+    fn to_gatt(&self) -> &[u8] {
+        unimplemented!("we never write this so to_gatt is not needed")
+    }
+}
+
 const ENTITY_ID_TRACK: u8 = 2;
 const TRACK_ATTRIBUTE_ID_ARTIST: u8 = 0;
 const TRACK_ATTRIBUTE_ID_ALBUM: u8 = 1;
@@ -280,9 +325,21 @@ pub async fn task_gatt_client(conn: Connection) {
     }
 
     loop {
+        let client: TimeServiceClient = unwrap!(gatt_client::discover(&conn).await);
+        let e = client.current_time_read().await;
+        info!("response {:?}", e);
+
+        // TODO
+        // send this response to the display
+        // listen for notifications to this in parallel to apple media service
+
+        if e.is_ok() {
+            break;
+        }
+    }
+
+    loop {
         let client: AppleMediaServiceClient = unwrap!(gatt_client::discover(&conn).await);
-        // let e = client.remote_command_write(&2).await;
-        // info!("response {:?}", e);
 
         client.remote_command_cccd_write(true).await.unwrap();
         client.entity_update_cccd_write(true).await.unwrap();
