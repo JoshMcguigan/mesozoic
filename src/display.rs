@@ -164,6 +164,8 @@ where
         .draw(display)
 }
 
+const TIME_NUM_CHARS: usize = 8;
+
 fn draw_time<D, E>(display: &mut D, time: CurrentTime) -> Result<Point, E>
 where
     D: DrawTarget<Color = Rgb565, Error = E>,
@@ -171,6 +173,8 @@ where
 {
     // TODO factor these styles out so they aren't defined in multiple places
     let character_style = MonoTextStyle::new(&ascii::FONT_10X20, Rgb565::WHITE);
+    let character_width = 10;
+    let character_height = 20;
     let text_style = embedded_graphics::text::TextStyleBuilder::new()
         .baseline(embedded_graphics::text::Baseline::Top)
         .build();
@@ -178,7 +182,7 @@ where
         .fill_color(embedded_graphics::pixelcolor::Rgb565::BLACK)
         .build();
 
-    let mut time_string = ArrayString::<20>::new();
+    let mut time_string = ArrayString::<TIME_NUM_CHARS>::new();
     // This unwrap is safe because we can tell statically that we've allocated more characters
     // than this string could ever be.
     write!(
@@ -195,8 +199,8 @@ where
     embedded_graphics::primitives::Rectangle::new(
         embedded_graphics::geometry::Point::new(text_x_pos, text_y_pos),
         embedded_graphics::prelude::Size::new(
-            (LCD_W as i32 - text_x_pos) as u32,
-            text_y_pos as u32,
+            (TIME_NUM_CHARS * character_width) as u32,
+            character_height,
         ),
     )
     .into_styled(backdrop_style)
