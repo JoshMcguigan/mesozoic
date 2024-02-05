@@ -273,7 +273,7 @@ struct TimeServiceClient {
     current_time: CurrentTime,
 }
 
-#[derive(defmt::Format)]
+#[derive(defmt::Format, Default, Clone)]
 pub struct CurrentTime {
     pub year: u16,
     pub month: u8,

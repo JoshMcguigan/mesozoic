@@ -1,11 +1,14 @@
 use arrayvec::ArrayString;
-use embassy_futures::select::{select3, Either3};
+use defmt::unwrap;
+use embassy_executor::Spawner;
+use embassy_futures::select::{select, select3, Either, Either3};
 use embassy_nrf::{
     bind_interrupts,
     gpio::{Level, Output, OutputDrive},
     peripherals::{P0_02, P0_03, P0_04, P0_14, P0_18, P0_25, TWISPI1},
     spim::{self, Spim},
 };
+use embassy_time::Timer;
 use embedded_graphics::{
     draw_target::DrawTarget,
     geometry::{Point, Size},
@@ -39,6 +42,10 @@ pub async fn task(
     miso_pin: P0_04,
     mosi_pin: P0_03,
 ) {
+    unwrap!(Spawner::for_current_executor()
+        .await
+        .spawn(internal_timer()));
+
     let display_spi_config = {
         let mut c = spim::Config::default();
 
@@ -90,7 +97,7 @@ pub async fn task(
         match select3(
             APPLE_MEDIA_SERVICE_DATA.wait(),
             BATTERY_DATA.wait(),
-            TIME_SERVICE_DATA.wait(),
+            INTERNAL_TIME_DATA.wait(),
         )
         .await
         {
@@ -157,13 +164,18 @@ where
         .draw(display)
 }
 
-fn draw_time<D>(display: &mut D, time: CurrentTime) -> Result<Point, D::Error>
+fn draw_time<D, E>(display: &mut D, time: CurrentTime) -> Result<Point, E>
 where
-    D: DrawTarget<Color = Rgb565>,
+    D: DrawTarget<Color = Rgb565, Error = E>,
+    E: core::fmt::Debug,
 {
+    // TODO factor these styles out so they aren't defined in multiple places
     let character_style = MonoTextStyle::new(&ascii::FONT_10X20, Rgb565::WHITE);
     let text_style = embedded_graphics::text::TextStyleBuilder::new()
         .baseline(embedded_graphics::text::Baseline::Top)
+        .build();
+    let backdrop_style = embedded_graphics::primitives::PrimitiveStyleBuilder::new()
+        .fill_color(embedded_graphics::pixelcolor::Rgb565::BLACK)
         .build();
 
     let mut time_string = ArrayString::<20>::new();
@@ -171,16 +183,72 @@ where
     // than this string could ever be.
     write!(
         &mut time_string,
-        "{}:{}:{}",
+        "{:02}:{:02}:{:02}",
         time.hours, time.minutes, time.seconds
     )
     .unwrap();
 
+    let text_x_pos = 10;
+    let text_y_pos = 200;
+
+    // clearing out the old text
+    embedded_graphics::primitives::Rectangle::new(
+        embedded_graphics::geometry::Point::new(text_x_pos, text_y_pos),
+        embedded_graphics::prelude::Size::new(
+            (LCD_W as i32 - text_x_pos) as u32,
+            text_y_pos as u32,
+        ),
+    )
+    .into_styled(backdrop_style)
+    .draw(display)
+    .unwrap();
+
     embedded_graphics::text::Text::with_text_style(
         time_string.as_str(),
-        Point::new(10, 200),
+        Point::new(text_x_pos, text_y_pos),
         character_style,
         text_style,
     )
     .draw(display)
+}
+
+// This is a super messy way of moving the clock forward.
+
+static INTERNAL_TIME_DATA: embassy_sync::signal::Signal<
+    embassy_sync::blocking_mutex::raw::ThreadModeRawMutex,
+    CurrentTime,
+> = embassy_sync::signal::Signal::new();
+
+#[embassy_executor::task]
+async fn internal_timer() {
+    let mut time = CurrentTime::default();
+
+    loop {
+        INTERNAL_TIME_DATA.signal(time.clone());
+
+        match select(TIME_SERVICE_DATA.wait(), Timer::after_secs(1)).await {
+            Either::First(current_time) => {
+                time = current_time;
+            }
+            Either::Second(_) => {
+                if time.seconds >= 59 {
+                    time.seconds = 0;
+
+                    if time.minutes >= 59 {
+                        time.minutes = 0;
+
+                        if time.hours >= 23 {
+                            time.hours = 0;
+                        } else {
+                            time.hours += 1;
+                        }
+                    } else {
+                        time.minutes += 1;
+                    }
+                } else {
+                    time.seconds += 1;
+                }
+            }
+        }
+    }
 }
