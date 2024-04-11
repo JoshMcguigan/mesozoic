@@ -1,9 +1,11 @@
 [package]
-name = "ahora"
+name = "ahora-platform"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+ahora-app = { path = "../app" }
+
 cortex-m = "0.7.2"
 cortex-m-rt = "0.7.0"
 
@@ -23,7 +25,6 @@ panic-probe = { version = "0.3", features = ["print-defmt"] }
 
 # Display
 display-interface-spi = "0.4.1"
-embedded-graphics = "0.8.0"
 mipidsi = "0.7.1"
 
 # Miscellaneous
