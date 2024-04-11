@@ -1,0 +1,9 @@
+[package]
+name = "ahora-app"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+embedded-graphics = "0.8.1"
+
+arrayvec = {version = "0.7.4", default-features = false }

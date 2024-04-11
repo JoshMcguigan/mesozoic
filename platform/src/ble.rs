@@ -3,6 +3,7 @@ use core::{
     mem,
 };
 
+use ahora_app::{AppleMediaServiceData, AppleMediaServiceString};
 use defmt::{debug, info, unwrap};
 use embassy_executor::{SendSpawner, Spawner};
 use nrf_softdevice::ble::gatt_server::builder::ServiceBuilder;
@@ -25,14 +26,6 @@ pub static TIME_SERVICE_DATA: embassy_sync::signal::Signal<
     embassy_sync::blocking_mutex::raw::ThreadModeRawMutex,
     CurrentTime,
 > = embassy_sync::signal::Signal::new();
-
-pub struct AppleMediaServiceData {
-    pub artist: AppleMediaServiceString,
-    pub album: AppleMediaServiceString,
-    pub title: AppleMediaServiceString,
-}
-
-type AppleMediaServiceString = arrayvec::ArrayString<ATT_PAYLOAD_MAX_LEN>;
 
 pub struct TaskParams {
     sd: &'static Softdevice,
@@ -284,6 +277,16 @@ pub struct CurrentTime {
     pub day_of_week: u8,
     pub fractions_256: u8,
     pub adjust_reason: u8,
+}
+
+impl From<CurrentTime> for ahora_app::CurrentTime {
+    fn from(value: CurrentTime) -> Self {
+        Self {
+            hours: value.hours,
+            minutes: value.minutes,
+            seconds: value.seconds,
+        }
+    }
 }
 
 impl GattValue for CurrentTime {
