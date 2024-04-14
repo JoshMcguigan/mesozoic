@@ -255,7 +255,7 @@ pub struct CurrentTime {
     pub adjust_reason: u8,
 }
 
-impl From<CurrentTime> for ahora_app::CurrentTime {
+impl From<CurrentTime> for ahora_app::TimeOfDay {
     fn from(value: CurrentTime) -> Self {
         Self {
             hours: value.hours,

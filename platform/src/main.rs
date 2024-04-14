@@ -16,7 +16,7 @@ mod button;
 mod display;
 mod haptics;
 mod nrf;
-mod timer;
+mod tick;
 mod touch;
 
 mod event_loop;
@@ -30,7 +30,7 @@ async fn main(spawner: Spawner) {
     unwrap!(spawner.spawn(ble::task(ble::init(&spawner).await)));
     unwrap!(spawner.spawn(button::task(p.P0_13, p.P0_15)));
     unwrap!(spawner.spawn(haptics::task(p.P0_16)));
-    unwrap!(spawner.spawn(timer::task()));
+    unwrap!(spawner.spawn(tick::task()));
     unwrap!(spawner.spawn(touch::task(p.P0_10, p.P0_28, p.TWISPI0, p.P0_06, p.P0_07)));
 
     let display = display::create(p.P0_18, p.P0_25, p.TWISPI1, p.P0_02, p.P0_04, p.P0_03);

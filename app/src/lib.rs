@@ -15,12 +15,25 @@ pub type DisplayColor = embedded_graphics::pixelcolor::Rgb565;
 pub const LCD_W: u16 = 240;
 pub const LCD_H: u16 = 240;
 
-pub struct App;
+pub struct App {
+    time: TimeState,
+}
+
+pub struct TimeState {
+    ms_since_boot_when_time_last_specified: u64,
+    last_specified_time: TimeOfDay,
+    current_ms_since_boot: u64,
+}
 
 pub enum AppInput {
     AppleMedia(AppleMediaServiceData),
     Battery(BatteryData),
-    Time(CurrentTime),
+    Time(TimeOfDay),
+    /// The platform should provide this input at the rate requested by the app.
+    ///
+    /// TODO see future AppOutput::TickRate
+    /// app will request higher tick rate when the display/backlight is on, for example
+    Tick,
 }
 
 pub struct AppleMediaServiceData {
@@ -36,7 +49,7 @@ pub struct BatteryData {
 }
 
 impl App {
-    pub fn init<D, E>(display: &mut D) -> Result<Self, D::Error>
+    pub fn init<D, E>(display: &mut D, ms_since_boot: u64) -> Result<Self, D::Error>
     where
         D: DrawTarget<Color = DisplayColor, Error = E>,
         E: core::fmt::Debug,
@@ -65,7 +78,14 @@ impl App {
         )
         .draw(display)
         .unwrap();
-        Ok(Self)
+
+        Ok(Self {
+            time: TimeState {
+                ms_since_boot_when_time_last_specified: ms_since_boot,
+                last_specified_time: TimeOfDay::default(),
+                current_ms_since_boot: ms_since_boot,
+            },
+        })
     }
 
     // TODO eventually this will return actions for the platform code to take, for
@@ -74,15 +94,34 @@ impl App {
     // TODO why is display special, compared to other "outputs" - it is hard to
     // communicate what we want to do to the display, perhaps we could with function
     // pointers? otherwise should the whole "device" get passed into these functions?
-    pub fn handle_event<D, E>(&mut self, display: &mut D, event: AppInput) -> Result<(), D::Error>
+    pub fn handle_event<D, E>(
+        &mut self,
+        display: &mut D,
+        ms_since_boot: u64,
+        event: AppInput,
+    ) -> Result<(), D::Error>
     where
         D: DrawTarget<Color = DisplayColor, Error = E>,
         E: core::fmt::Debug,
     {
+        self.time.current_ms_since_boot = ms_since_boot;
+
         match event {
             AppInput::AppleMedia(e) => draw_audio(display, &e.artist, &e.title),
             AppInput::Battery(e) => draw_battery(display, e.charging),
-            AppInput::Time(e) => draw_time(display, e),
+            AppInput::Time(e) => {
+                self.time.last_specified_time = e.clone();
+                self.time.ms_since_boot_when_time_last_specified = ms_since_boot;
+
+                draw_time(display, e)
+            }
+            AppInput::Tick => {
+                // TODO calculate current time of day and update screen
+                // probably need some mechanism to not do this more often
+                // than needed
+
+                Ok(())
+            }
         }?;
 
         Ok(())
@@ -156,13 +195,13 @@ where
 }
 
 #[derive(Default, Clone)]
-pub struct CurrentTime {
+pub struct TimeOfDay {
     pub hours: u8,
     pub minutes: u8,
     pub seconds: u8,
 }
 
-fn draw_time<D, E>(display: &mut D, time: CurrentTime) -> Result<(), E>
+fn draw_time<D, E>(display: &mut D, time: TimeOfDay) -> Result<(), E>
 where
     D: DrawTarget<Color = DisplayColor, Error = E>,
     E: core::fmt::Debug,

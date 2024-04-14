@@ -1,16 +1,19 @@
 use ahora_app::{App, AppInput};
-use embassy_futures::select::{select3, Either3};
+use embassy_futures::select::{select4, Either4::*};
+use embassy_time::Instant;
 
 use crate::{
-    battery::BATTERY_DATA, ble::APPLE_MEDIA_SERVICE_DATA, display::SpiDisplay,
-    timer::INTERNAL_TIME_DATA,
+    battery::BATTERY_DATA,
+    ble::{APPLE_MEDIA_SERVICE_DATA, TIME_SERVICE_DATA},
+    display::SpiDisplay,
+    tick::TICK,
 };
 
 pub async fn run(mut display: SpiDisplay) -> ! {
-    let mut app = App::init(&mut display).unwrap();
+    let mut app = App::init(&mut display, Instant::now().as_millis()).unwrap();
 
     loop {
-        let event = match select3(
+        let event = match select4(
             // A signal per message type is used here, rather than using a single
             // channel of the Event type, because if multiple events of the
             // same type end up in the channel we only want the latest.
@@ -21,22 +24,25 @@ pub async fn run(mut display: SpiDisplay) -> ! {
             // the latest.
             APPLE_MEDIA_SERVICE_DATA.wait(),
             BATTERY_DATA.wait(),
-            INTERNAL_TIME_DATA.wait(),
+            TIME_SERVICE_DATA.wait(),
+            TICK.wait(),
         )
         .await
         {
-            Either3::First(e) => AppInput::AppleMedia(e),
-            Either3::Second(e) => {
+            First(e) => AppInput::AppleMedia(e),
+            Second(e) => {
                 // The battery task immediately signals this event on startup so we
                 // don't need to draw the battery un-conditionally on startup.
                 AppInput::Battery(e)
             }
-            Either3::Third(current_time) => {
+            Third(current_time) => {
                 // The timer task signals this event on periodically so we
                 // don't need to draw the time un-conditionally on startup.
                 AppInput::Time(current_time.into())
             }
+            Fourth(_) => AppInput::Tick,
         };
-        app.handle_event(&mut display, event).unwrap();
+        app.handle_event(&mut display, Instant::now().as_millis(), event)
+            .unwrap();
     }
 }
