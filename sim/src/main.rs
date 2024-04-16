@@ -22,9 +22,9 @@ fn main() -> Result<(), core::convert::Infallible> {
         &mut display,
         start_time.elapsed().as_millis() as u64,
         AppInput::Time(TimeOfDay {
-            hours: 11,
-            minutes: 22,
-            seconds: 33,
+            hours: 23,
+            minutes: 59,
+            seconds: 58,
             ..Default::default()
         }),
     )
@@ -51,9 +51,8 @@ fn main() -> Result<(), core::convert::Infallible> {
     'running: loop {
         window.update(&display);
 
-        // TODO refactor this to also send a tick event at the rate requested by
-        // the app
-        for event in window.events() {
+        let mut events = window.events();
+        if let Some(event) = events.next() {
             match event {
                 SimulatorEvent::Quit => break 'running,
                 SimulatorEvent::KeyUp { keycode, .. } => {
@@ -75,6 +74,12 @@ fn main() -> Result<(), core::convert::Infallible> {
                 SimulatorEvent::MouseButtonUp { point: _, .. } => {}
                 _ => {}
             }
+        } else {
+            app.handle_event(
+                &mut display,
+                start_time.elapsed().as_millis() as u64,
+                AppInput::Tick,
+            ).unwrap();
         }
     }
 

@@ -32,7 +32,7 @@ impl TimeState {
         // TODO handle rollover in ms_since_boot
         let ms_delta = self.current_ms_since_boot - self.ms_since_boot_when_time_last_specified;
 
-        let mut hours_delta = ms_delta / 1000 / 60 / 60;
+        let mut hours_delta = ms_delta / 1000 / 60 / 60 % 24;
         let mut minutes_delta = ms_delta / 1000 / 60 % 60;
         let seconds_delta = ms_delta / 1000 % 60;
 
@@ -40,10 +40,7 @@ impl TimeState {
             seconds @ 0..=59 => seconds,
             seconds_plus_extra => {
                 minutes_delta += 1;
-                if minutes_delta > 59 {
-                    minutes_delta = 0;
-                    hours_delta += 1;
-                }
+
                 seconds_plus_extra % 60
             }
         };
@@ -57,10 +54,10 @@ impl TimeState {
             }
         };
 
-        hours_delta = hours_delta % 24;
+        let hours = (self.last_specified_time.hours + hours_delta as u8) % 24;
 
         TimeOfDay {
-            hours: self.last_specified_time.hours + hours_delta as u8,
+            hours,
             minutes,
             seconds,
         }
