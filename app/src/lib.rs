@@ -29,17 +29,40 @@ impl TimeState {
     /// Calculates current time by looking at last specified time and adding
     /// the elapsed ms_since_boot.
     fn current_time(&self) -> TimeOfDay {
-        // TODO handle rollover
+        // TODO handle rollover in ms_since_boot
         let ms_delta = self.current_ms_since_boot - self.ms_since_boot_when_time_last_specified;
 
-        let hours_delta = ms_delta / 1000 / 60 / 60;
-        let minutes_delta = ms_delta / 1000 / 60 % 60;
+        let mut hours_delta = ms_delta / 1000 / 60 / 60;
+        let mut minutes_delta = ms_delta / 1000 / 60 % 60;
         let seconds_delta = ms_delta / 1000 % 60;
+
+        let seconds = match self.last_specified_time.seconds + seconds_delta as u8 {
+            seconds @ 0..=59 => seconds,
+            seconds_plus_extra => {
+                minutes_delta += 1;
+                if minutes_delta > 59 {
+                    minutes_delta = 0;
+                    hours_delta += 1;
+                }
+                seconds_plus_extra % 60
+            }
+        };
+
+        let minutes = match self.last_specified_time.minutes + minutes_delta as u8 {
+            minutes @ 0..=59 => minutes,
+            minutes_plus_extra => {
+                hours_delta += 1;
+
+                minutes_plus_extra % 60
+            }
+        };
+
+        hours_delta = hours_delta % 24;
 
         TimeOfDay {
             hours: self.last_specified_time.hours + hours_delta as u8,
-            minutes: self.last_specified_time.minutes + minutes_delta as u8,
-            seconds: self.last_specified_time.seconds + seconds_delta as u8,
+            minutes,
+            seconds,
         }
     }
 }
