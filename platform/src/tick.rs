@@ -5,7 +5,7 @@ pub static TICK: embassy_sync::signal::Signal<
     (),
 > = embassy_sync::signal::Signal::new();
 
-const DISPLAY_ON_TICK_DURATION: Duration = Duration::from_hz(30);
+const DISPLAY_ON_TICK_DURATION: Duration = Duration::from_hz(10);
 
 #[embassy_executor::task]
 pub async fn task() {

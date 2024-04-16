@@ -51,6 +51,8 @@ fn main() -> Result<(), core::convert::Infallible> {
     'running: loop {
         window.update(&display);
 
+        // TODO refactor this to also send a tick event at the rate requested by
+        // the app
         for event in window.events() {
             match event {
                 SimulatorEvent::Quit => break 'running,

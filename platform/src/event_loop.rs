@@ -30,16 +30,8 @@ pub async fn run(mut display: SpiDisplay) -> ! {
         .await
         {
             First(e) => AppInput::AppleMedia(e),
-            Second(e) => {
-                // The battery task immediately signals this event on startup so we
-                // don't need to draw the battery un-conditionally on startup.
-                AppInput::Battery(e)
-            }
-            Third(current_time) => {
-                // The timer task signals this event on periodically so we
-                // don't need to draw the time un-conditionally on startup.
-                AppInput::Time(current_time.into())
-            }
+            Second(e) => AppInput::Battery(e),
+            Third(current_time) => AppInput::Time(current_time.into()),
             Fourth(_) => AppInput::Tick,
         };
         app.handle_event(&mut display, Instant::now().as_millis(), event)

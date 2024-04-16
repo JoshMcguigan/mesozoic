@@ -25,6 +25,25 @@ pub struct TimeState {
     current_ms_since_boot: u64,
 }
 
+impl TimeState {
+    /// Calculates current time by looking at last specified time and adding
+    /// the elapsed ms_since_boot.
+    fn current_time(&self) -> TimeOfDay {
+        // TODO handle rollover
+        let ms_delta = self.current_ms_since_boot - self.ms_since_boot_when_time_last_specified;
+
+        let hours_delta = ms_delta / 1000 / 60 / 60;
+        let minutes_delta = ms_delta / 1000 / 60 % 60;
+        let seconds_delta = ms_delta / 1000 % 60;
+
+        TimeOfDay {
+            hours: self.last_specified_time.hours + hours_delta as u8,
+            minutes: self.last_specified_time.minutes + minutes_delta as u8,
+            seconds: self.last_specified_time.seconds + seconds_delta as u8,
+        }
+    }
+}
+
 pub enum AppInput {
     AppleMedia(AppleMediaServiceData),
     Battery(BatteryData),
@@ -110,18 +129,15 @@ impl App {
             AppInput::AppleMedia(e) => draw_audio(display, &e.artist, &e.title),
             AppInput::Battery(e) => draw_battery(display, e.charging),
             AppInput::Time(e) => {
-                self.time.last_specified_time = e.clone();
+                self.time.last_specified_time = e;
                 self.time.ms_since_boot_when_time_last_specified = ms_since_boot;
 
-                draw_time(display, e)
+                draw_time(display, self.time.current_time())
             }
-            AppInput::Tick => {
-                // TODO calculate current time of day and update screen
-                // probably need some mechanism to not do this more often
-                // than needed
-
-                Ok(())
-            }
+            // TODO re-drawing the time every tick is not necessary and leads to
+            // screen flicker. Also we are re-drawing a lot more of the time
+            // than actually changes second by second.
+            AppInput::Tick => draw_time(display, self.time.current_time()),
         }?;
 
         Ok(())
