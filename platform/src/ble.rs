@@ -4,6 +4,7 @@ use core::{
 };
 
 use ahora_app::interface::{AppleMediaServiceData, AppleMediaServiceString};
+use arrayvec::ArrayVec;
 use defmt::{debug, info, unwrap};
 use embassy_executor::{SendSpawner, Spawner};
 use nrf_softdevice::ble::gatt_server::builder::ServiceBuilder;
@@ -50,7 +51,7 @@ struct Peer {
 
 pub struct Bonder {
     peer: Cell<Option<Peer>>,
-    sys_attrs: RefCell<heapless::Vec<u8, 62>>,
+    sys_attrs: RefCell<ArrayVec<u8, 62>>,
 }
 
 impl Default for Bonder {
@@ -109,7 +110,9 @@ impl SecurityHandler for Bonder {
             if peer.peer_id.is_match(conn.peer_address()) {
                 let mut sys_attrs = self.sys_attrs.borrow_mut();
                 let capacity = sys_attrs.capacity();
-                unwrap!(sys_attrs.resize(capacity, 0));
+                unsafe {
+                    sys_attrs.set_len(capacity);
+                }
                 let len = unwrap!(gatt_server::get_sys_attrs(conn, &mut sys_attrs)) as u16;
                 sys_attrs.truncate(usize::from(len));
                 // In a real application you would want to signal another task to permanently store sys_attrs for this connection's peer

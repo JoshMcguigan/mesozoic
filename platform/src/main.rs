@@ -1,6 +1,5 @@
 #![no_std]
 #![no_main]
-#![feature(type_alias_impl_trait)]
 
 use defmt_rtt as _; // global logger
 use embassy_nrf as _; // time driver
