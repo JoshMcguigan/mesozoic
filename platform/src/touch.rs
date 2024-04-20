@@ -1,3 +1,4 @@
+use ahora_app::interface::Touch;
 use defmt::{info, unwrap};
 use embassy_nrf::{
     bind_interrupts,
@@ -11,33 +12,6 @@ const TOUCH_CONTROLLER_ADDR: u8 = 0x15;
 bind_interrupts!(struct Irqs {
     SPIM0_SPIS0_TWIM0_TWIS0_SPI0_TWI0 => twim::InterruptHandler<TWISPI0>;
 });
-
-#[derive(defmt::Format)]
-struct TouchEvent {
-    gesture: Gesture,
-    event_type: EventType,
-    x: u8,
-    y: u8,
-}
-
-#[derive(defmt::Format)]
-enum Gesture {
-    None,
-    SlideDown,
-    SlideUp,
-    SlideLeft,
-    SlideRight,
-    SingleClick,
-    DoubleClick,
-    LongPress,
-}
-
-#[derive(defmt::Format)]
-enum EventType {
-    Down,
-    Up,
-    Contact,
-}
 
 #[embassy_executor::task]
 pub async fn task(
@@ -72,44 +46,13 @@ pub async fn task(
                 .await
         );
 
-        let touch_event = TouchEvent {
+        let _touch_event = Touch {
             gesture: unwrap!(buf[1].try_into()),
             event_type: unwrap!((buf[3] >> 6).try_into()),
             x: buf[4],
             y: buf[5],
         };
 
-        info!("detected touch event: {:?}", touch_event);
-    }
-}
-
-impl TryFrom<u8> for Gesture {
-    type Error = u8;
-
-    fn try_from(value: u8) -> Result<Self, Self::Error> {
-        match value {
-            0x00 => Ok(Gesture::None),
-            0x01 => Ok(Gesture::SlideDown),
-            0x02 => Ok(Gesture::SlideUp),
-            0x03 => Ok(Gesture::SlideLeft),
-            0x04 => Ok(Gesture::SlideRight),
-            0x05 => Ok(Gesture::SingleClick),
-            0x0B => Ok(Gesture::DoubleClick),
-            0x0C => Ok(Gesture::LongPress),
-            other => Err(other),
-        }
-    }
-}
-
-impl TryFrom<u8> for EventType {
-    type Error = u8;
-
-    fn try_from(value: u8) -> Result<Self, Self::Error> {
-        match value {
-            0 => Ok(EventType::Down),
-            1 => Ok(EventType::Up),
-            2 => Ok(EventType::Contact),
-            other => Err(other),
-        }
+        // TODO send this touch event to app
     }
 }

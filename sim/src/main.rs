@@ -1,6 +1,9 @@
 use std::{str::FromStr, time::Instant};
 
-use ahora_app::{App, AppInput, AppleMediaServiceData, BatteryData, TimeOfDay, LCD_H, LCD_W};
+use ahora_app::{
+    interface::{AppInput, AppleMediaServiceData, BatteryData, TimeOfDay, LCD_H, LCD_W},
+    App,
+};
 
 use arrayvec::ArrayString;
 use embedded_graphics::geometry::Size;
@@ -79,7 +82,8 @@ fn main() -> Result<(), core::convert::Infallible> {
                 &mut display,
                 start_time.elapsed().as_millis() as u64,
                 AppInput::Tick,
-            ).unwrap();
+            )
+            .unwrap();
         }
     }
 

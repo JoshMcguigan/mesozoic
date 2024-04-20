@@ -1,4 +1,4 @@
-use ahora_app::{App, AppInput};
+use ahora_app::{App, interface::AppInput};
 use embassy_futures::select::{select4, Either4::*};
 use embassy_time::Instant;
 

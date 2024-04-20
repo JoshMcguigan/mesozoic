@@ -3,7 +3,7 @@ use core::{
     mem,
 };
 
-use ahora_app::{AppleMediaServiceData, AppleMediaServiceString};
+use ahora_app::interface::{AppleMediaServiceData, AppleMediaServiceString};
 use defmt::{debug, info, unwrap};
 use embassy_executor::{SendSpawner, Spawner};
 use nrf_softdevice::ble::gatt_server::builder::ServiceBuilder;
@@ -255,7 +255,7 @@ pub struct CurrentTime {
     pub adjust_reason: u8,
 }
 
-impl From<CurrentTime> for ahora_app::TimeOfDay {
+impl From<CurrentTime> for ahora_app::interface::TimeOfDay {
     fn from(value: CurrentTime) -> Self {
         Self {
             hours: value.hours,

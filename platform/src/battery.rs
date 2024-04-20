@@ -1,4 +1,4 @@
-use ahora_app::BatteryData;
+use ahora_app::interface::BatteryData;
 use embassy_nrf::{
     gpio::{Input, Pull},
     peripherals::{P0_12, P0_31},

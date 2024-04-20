@@ -1,4 +1,4 @@
-use ahora_app::{LCD_H, LCD_W};
+use ahora_app::interface::{LCD_H, LCD_W};
 use embassy_nrf::{
     bind_interrupts,
     gpio::{Level, Output, OutputDrive},
