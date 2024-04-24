@@ -1,3 +1,4 @@
+use arrayvec::ArrayString;
 use embedded_graphics::draw_target::DrawTarget;
 
 use crate::{
@@ -100,22 +101,33 @@ impl App {
             }
             AppInput::Touch(touch) => {
                 // TODO replace this with something reasonable
-                draw_audio(display, match touch.event_type {
-                    crate::interface::EventType::Down => "down",
-                    crate::interface::EventType::Contact => "contact",
-                    crate::interface::EventType::Up => "up",
-                }, match touch.gesture {
-                    crate::interface::Gesture::None => "none",
-                    crate::interface::Gesture::SlideDown => "slide down",
-                    crate::interface::Gesture::SlideUp => "slide up",
-                    crate::interface::Gesture::SlideLeft => "slide left",
-                    crate::interface::Gesture::SlideRight => "slide right",
-                    crate::interface::Gesture::SingleClick => "single click",
-                    crate::interface::Gesture::DoubleClick => "double click",
-                    crate::interface::Gesture::LongPress => "long press",
-                })
-                
-                // TODO check x and y coordinates
+
+                use core::fmt::Write;
+                let mut x = ArrayString::<3>::new();
+                let mut y = ArrayString::<3>::new();
+                write!(&mut x, "{}", touch.x).unwrap();
+                write!(&mut y, "{}", touch.y).unwrap();
+                draw_audio(display, &x, &y)
+
+                // y is displaying horizontal offset something like 0-239, although
+                // i've never seen zero
+                // x is always reporting zero
+
+                // draw_audio(display, match touch.event_type {
+                //     crate::interface::EventType::Down => "down",
+                //     crate::interface::EventType::Contact => "contact",
+                //     crate::interface::EventType::Up => "up",
+                // }, match touch.gesture {
+                //     crate::interface::Gesture::None => "none",
+                //     crate::interface::Gesture::SlideDown => "slide down",
+                //     crate::interface::Gesture::SlideUp => "slide up",
+                //     crate::interface::Gesture::SlideLeft => "slide left",
+                //     crate::interface::Gesture::SlideRight => "slide right",
+                //     crate::interface::Gesture::SingleClick => "single click",
+                //     crate::interface::Gesture::DoubleClick => "double click",
+                //     crate::interface::Gesture::LongPress => "long press",
+                // })
+
             }
             // TODO re-drawing the time every tick is not necessary and leads to
             // screen flicker. Also we are re-drawing a lot more of the time
