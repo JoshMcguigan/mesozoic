@@ -7,6 +7,8 @@ use embassy_nrf::{
     twim::{self, Twim},
 };
 
+use crate::event_loop::TOUCH_DATA;
+
 const TOUCH_CONTROLLER_ADDR: u8 = 0x15;
 
 bind_interrupts!(struct Irqs {
@@ -46,13 +48,13 @@ pub async fn task(
                 .await
         );
 
-        let _touch_event = Touch {
+        let touch_event = Touch {
             gesture: unwrap!(buf[1].try_into()),
             event_type: unwrap!((buf[3] >> 6).try_into()),
             x: buf[4],
             y: buf[5],
         };
 
-        // TODO send this touch event to app
+        TOUCH_DATA.send(touch_event).await;
     }
 }

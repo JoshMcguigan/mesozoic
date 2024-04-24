@@ -99,8 +99,8 @@ impl App {
                 draw_time(display, self.time.current_time())
             }
             AppInput::Touch(_) => {
-                // Not implemented yet
-                Ok(())
+                // TODO replace this with something reasonable
+                draw_audio(display, "got a touch event", "")
             }
             // TODO re-drawing the time every tick is not necessary and leads to
             // screen flicker. Also we are re-drawing a lot more of the time
