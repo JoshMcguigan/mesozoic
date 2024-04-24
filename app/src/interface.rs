@@ -42,20 +42,26 @@ pub struct Touch {
 }
 
 pub enum Gesture {
-    None,
     SlideDown,
     SlideUp,
     SlideLeft,
     SlideRight,
     SingleClick,
+    /// I have not observed the hardware reporting this value
+    None,
+    /// I have not observed the hardware reporting this value
     DoubleClick,
+    /// I have not observed the hardware reporting this value
     LongPress,
 }
 
 pub enum EventType {
+    /// Represents a quick touch
     Down,
-    Up,
+    /// Represents a persistent touch that moves around the display
     Contact,
+    /// This value is rarely reported by the hardware
+    Up,
 }
 
 impl TryFrom<u8> for Gesture {

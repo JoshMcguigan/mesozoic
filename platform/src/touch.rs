@@ -26,8 +26,12 @@ pub async fn task(
     let mut interrupt_pin = Input::new(interrupt_pin, Pull::None);
 
     loop {
-        // TODO not sure which edge we should be watching for here, but probably just one not "any"
-        interrupt_pin.wait_for_any_edge().await;
+        // Using the falling edge here is a guess. I have not confirmed this is the
+        // correct edge to watch, but on initial testing it seemed to work as well
+        // as rising edge.
+        //
+        // TODO test this further, or find documentation to confirm
+        interrupt_pin.wait_for_falling_edge().await;
         info!("Touch controller awake, reading data..");
 
         // The twi peripheral is re-created for each read, so it can be dropped after we are
