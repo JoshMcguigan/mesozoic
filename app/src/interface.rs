@@ -37,7 +37,9 @@ pub struct TimeOfDay {
 pub struct Touch {
     pub gesture: Gesture,
     pub event_type: EventType,
+    /// X coordinate, inclusive from 0 at left to 239 at right
     pub x: u8,
+    /// Y coordinate, inclusive from 0 at top to 239 at bottom
     pub y: u8,
 }
 

@@ -107,7 +107,7 @@ impl App {
                 let mut y = ArrayString::<3>::new();
                 write!(&mut x, "{}", touch.x).unwrap();
                 write!(&mut y, "{}", touch.y).unwrap();
-                draw_audio(display, &x, &y)
+                draw_audio(display, &y, &x)
 
                 // y is displaying horizontal offset something like 0-239, although
                 // i've never seen zero

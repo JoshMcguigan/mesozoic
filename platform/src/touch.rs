@@ -56,7 +56,7 @@ pub async fn task(
             gesture: unwrap!(buf[1].try_into()),
             event_type: unwrap!((buf[3] >> 6).try_into()),
             x: buf[4],
-            y: buf[5],
+            y: buf[6],
         };
 
         TOUCH_DATA.send(touch_event).await;
