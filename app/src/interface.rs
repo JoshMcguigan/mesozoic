@@ -8,6 +8,7 @@ pub enum AppInput {
     Battery(BatteryData),
     Time(TimeOfDay),
     Touch(Touch),
+    ButtonPressed,
     /// The platform should provide this input at the rate requested by the app.
     ///
     /// TODO see future AppOutput::TickRate

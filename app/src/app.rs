@@ -129,6 +129,9 @@ impl App {
                 // })
 
             }
+            AppInput::ButtonPressed => {
+                draw_audio(display, "button pressed", "")
+            }
             // TODO re-drawing the time every tick is not necessary and leads to
             // screen flicker. Also we are re-drawing a lot more of the time
             // than actually changes second by second.

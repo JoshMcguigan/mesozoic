@@ -18,6 +18,11 @@ pub static TOUCH_DATA: embassy_sync::channel::Channel<
     Touch,
     5,
 > = embassy_sync::channel::Channel::new();
+pub static BUTTON_DATA: embassy_sync::channel::Channel<
+    embassy_sync::blocking_mutex::raw::ThreadModeRawMutex,
+    (),
+    5,
+> = embassy_sync::channel::Channel::new();
 
 pub async fn run(mut display: SpiDisplay) -> ! {
     let mut app = App::init(&mut display, Instant::now().as_millis()).unwrap();
@@ -38,7 +43,7 @@ pub async fn run(mut display: SpiDisplay) -> ! {
                 TIME_SERVICE_DATA.wait(),
                 TICK.wait(),
             ),
-            TOUCH_DATA.receive(),
+            select(TOUCH_DATA.receive(), BUTTON_DATA.receive()),
         )
         .await
         {
@@ -46,8 +51,12 @@ pub async fn run(mut display: SpiDisplay) -> ! {
             Either::First(Second(e)) => AppInput::Battery(e),
             Either::First(Third(current_time)) => AppInput::Time(current_time.into()),
             Either::First(Fourth(_)) => AppInput::Tick,
-            Either::Second(touch) => AppInput::Touch(touch),
+            Either::Second(Either::First(touch)) => AppInput::Touch(touch),
+            Either::Second(Either::Second(_button_pressed)) => AppInput::ButtonPressed,
         };
+        // Currently we are taking this timestamp to mean time when the event is being
+        // handled. Is it more appropriate for it to mean time when the event was
+        // captured? Do we need both of these times?
         app.handle_event(&mut display, Instant::now().as_millis(), event)
             .unwrap();
     }
