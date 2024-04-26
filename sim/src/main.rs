@@ -1,7 +1,10 @@
 use std::{str::FromStr, time::Instant};
 
 use ahora_app::{
-    interface::{AppInput, AppleMediaServiceData, BatteryData, TimeOfDay, LCD_H, LCD_W},
+    interface::{
+        AppInput, AppleMediaServiceData, BatteryData, Gesture, TimeOfDay, Touch, TouchType, LCD_H,
+        LCD_W,
+    },
     App,
 };
 
@@ -51,40 +54,42 @@ fn main() -> Result<(), core::convert::Infallible> {
     )
     .unwrap();
 
+    let mut charging = false;
+
     'running: loop {
         window.update(&display);
 
         let mut events = window.events();
-        if let Some(event) = events.next() {
+        let app_input = if let Some(event) = events.next() {
             match event {
                 SimulatorEvent::Quit => break 'running,
-                SimulatorEvent::KeyUp { keycode, .. } => {
-                    match keycode {
-                        Keycode::Up => app.handle_event(
-                            &mut display,
-                            start_time.elapsed().as_millis() as u64,
-                            AppInput::Battery(BatteryData { charging: true }),
-                        ),
-                        Keycode::Down => app.handle_event(
-                            &mut display,
-                            start_time.elapsed().as_millis() as u64,
-                            AppInput::Battery(BatteryData { charging: false }),
-                        ),
-                        _ => continue,
+                SimulatorEvent::KeyDown { keycode, .. } => match keycode {
+                    Keycode::B => {
+                        charging = !charging;
+                        AppInput::Battery(BatteryData { charging })
                     }
-                    .unwrap();
+                    _ => continue,
+                },
+                SimulatorEvent::MouseButtonDown { point, .. } => AppInput::Touch(Touch {
+                    gesture: Gesture::SingleClick,
+                    event_type: TouchType::Down,
+                    x: point.x as u8,
+                    y: point.y as u8,
+                }),
+                _ => {
+                    continue;
                 }
-                SimulatorEvent::MouseButtonUp { point: _, .. } => {}
-                _ => {}
             }
         } else {
-            app.handle_event(
-                &mut display,
-                start_time.elapsed().as_millis() as u64,
-                AppInput::Tick,
-            )
-            .unwrap();
-        }
+            AppInput::Tick
+        };
+
+        app.handle_event(
+            &mut display,
+            start_time.elapsed().as_millis() as u64,
+            app_input,
+        )
+        .unwrap();
     }
 
     Ok(())

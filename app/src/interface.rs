@@ -37,7 +37,7 @@ pub struct TimeOfDay {
 
 pub struct Touch {
     pub gesture: Gesture,
-    pub event_type: EventType,
+    pub event_type: TouchType,
     /// X coordinate, inclusive from 0 at left to 239 at right
     pub x: u8,
     /// Y coordinate, inclusive from 0 at top to 239 at bottom
@@ -58,7 +58,7 @@ pub enum Gesture {
     LongPress,
 }
 
-pub enum EventType {
+pub enum TouchType {
     /// Represents a quick touch
     Down,
     /// Represents a persistent touch that moves around the display
@@ -85,14 +85,14 @@ impl TryFrom<u8> for Gesture {
     }
 }
 
-impl TryFrom<u8> for EventType {
+impl TryFrom<u8> for TouchType {
     type Error = u8;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
-            0 => Ok(EventType::Down),
-            1 => Ok(EventType::Up),
-            2 => Ok(EventType::Contact),
+            0 => Ok(TouchType::Down),
+            1 => Ok(TouchType::Up),
+            2 => Ok(TouchType::Contact),
             other => Err(other),
         }
     }
