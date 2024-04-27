@@ -417,7 +417,7 @@ pub async fn init(spawner: &Spawner) -> TaskParams {
         }),
         conn_gatt: Some(raw::ble_gatt_conn_cfg_t { att_mtu: 527 }),
         gatts_attr_tab_size: Some(raw::ble_gatts_cfg_attr_tab_size_t {
-            attr_tab_size: 32768,
+            attr_tab_size: 1408,
         }),
         gap_role_count: Some(raw::ble_gap_cfg_role_count_t {
             adv_set_count: 1,
