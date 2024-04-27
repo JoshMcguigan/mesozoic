@@ -1,13 +1,33 @@
+use core::borrow::Borrow;
+
 use arrayvec::ArrayString;
 use embedded_graphics::draw_target::DrawTarget;
 
 use crate::{
     display::{draw_audio, draw_battery, draw_bg, draw_time},
-    interface::{AppInput, DisplayColor, TimeOfDay},
+    interface::{AppInput, AppleMediaServiceData, DisplayColor, TimeOfDay},
 };
 
 pub struct App {
+    active_window: ActiveWindow,
     time: TimeState,
+    media: Option<AppleMediaServiceData>,
+    charging: bool,
+}
+
+#[derive(Clone, Copy)]
+pub(crate) enum ActiveWindow {
+    Main,
+    Debug,
+}
+
+impl ActiveWindow {
+    fn next(&self) -> Self {
+        match self {
+            ActiveWindow::Main => ActiveWindow::Debug,
+            ActiveWindow::Debug => ActiveWindow::Main,
+        }
+    }
 }
 
 struct TimeState {
@@ -61,15 +81,27 @@ impl App {
         D: DrawTarget<Color = DisplayColor, Error = E>,
         E: core::fmt::Debug,
     {
-        draw_bg(display)?;
+        let active_window = ActiveWindow::Main;
 
-        Ok(Self {
+        let s = Self {
+            active_window,
             time: TimeState {
                 ms_since_boot_when_time_last_specified: ms_since_boot,
                 last_specified_time: TimeOfDay::default(),
                 current_ms_since_boot: ms_since_boot,
             },
-        })
+            media: None,
+            charging: false,
+        };
+
+        // Initialize by drawing the background once - this is a minor
+        // optimization. Should be removed when we have a more holistic
+        // display optimization solution.
+        draw_bg(display)?;
+
+        s.draw(display)?;
+
+        Ok(s)
     }
 
     // TODO eventually this will return actions for the platform code to take, for
@@ -91,23 +123,29 @@ impl App {
         self.time.current_ms_since_boot = ms_since_boot;
 
         match event {
-            AppInput::AppleMedia(e) => draw_audio(display, &e.artist, &e.title),
-            AppInput::Battery(e) => draw_battery(display, e.charging),
+            AppInput::AppleMedia(e) => {
+                self.media = Some(e);
+            }
+            AppInput::Battery(e) => {
+                self.charging = e.charging;
+            }
             AppInput::Time(e) => {
                 self.time.last_specified_time = e;
                 self.time.ms_since_boot_when_time_last_specified = ms_since_boot;
-
-                draw_time(display, self.time.current_time())
             }
             AppInput::Touch(touch) => {
                 // TODO replace this with something reasonable
 
                 use core::fmt::Write;
-                let mut x = ArrayString::<3>::new();
-                let mut y = ArrayString::<3>::new();
+                let mut x = ArrayString::<512>::new();
+                let mut y = ArrayString::<512>::new();
                 write!(&mut x, "{}", touch.x).unwrap();
                 write!(&mut y, "{}", touch.y).unwrap();
-                draw_audio(display, &y, &x)
+                self.media = Some(AppleMediaServiceData {
+                    title: x,
+                    artist: y,
+                    album: ArrayString::<512>::new(),
+                });
 
                 // y is displaying horizontal offset something like 0-239, although
                 // i've never seen zero
@@ -127,17 +165,39 @@ impl App {
                 //     crate::interface::Gesture::DoubleClick => "double click",
                 //     crate::interface::Gesture::LongPress => "long press",
                 // })
-
             }
             AppInput::ButtonPressed => {
-                draw_audio(display, "button pressed", "")
+                let new_window = self.active_window.next();
+                self.active_window = new_window;
             }
-            // TODO re-drawing the time every tick is not necessary and leads to
-            // screen flicker. Also we are re-drawing a lot more of the time
-            // than actually changes second by second.
-            AppInput::Tick => draw_time(display, self.time.current_time()),
-        }?;
+            AppInput::Tick => {
+                // this just triggers a re-draw
+            }
+        };
 
+        self.draw(display)?;
+
+        Ok(())
+    }
+
+    fn draw<D, E>(&self, display: &mut D) -> Result<(), E>
+    where
+        D: DrawTarget<Color = DisplayColor, Error = E>,
+        E: core::fmt::Debug,
+    {
+        match self.active_window {
+            ActiveWindow::Main => {
+                draw_battery(display, self.charging)?;
+                draw_time(display, self.time.current_time())?;
+                if let Some(media_data) = self.media.borrow() {
+                    draw_audio(display, &media_data.artist, &media_data.title)?;
+                }
+            }
+            ActiveWindow::Debug => {
+                // nothing for now
+                draw_bg(display)?;
+            }
+        }
         Ok(())
     }
 }
