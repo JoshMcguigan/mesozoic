@@ -47,14 +47,13 @@ fn main() -> Result<(), core::convert::Infallible> {
     )
     .unwrap();
 
+    let mut charging = true;
     app.handle_event(
         &mut display,
         start_time.elapsed().as_millis() as u64,
-        AppInput::Battery(BatteryData { charging: true }),
+        AppInput::Battery(BatteryData { charging }),
     )
     .unwrap();
-
-    let mut charging = false;
 
     'running: loop {
         window.update(&display);
@@ -68,6 +67,7 @@ fn main() -> Result<(), core::convert::Infallible> {
                         charging = !charging;
                         AppInput::Battery(BatteryData { charging })
                     }
+                    Keycode::LShift => AppInput::ButtonPressed,
                     _ => continue,
                 },
                 SimulatorEvent::MouseButtonDown { point, .. } => AppInput::Touch(Touch {
