@@ -4,7 +4,7 @@ use arrayvec::ArrayString;
 use embedded_graphics::{
     draw_target::DrawTarget,
     geometry::{Point, Size},
-    mono_font::{ascii, MonoTextStyle},
+    mono_font::ascii,
     prelude::RgbColor,
     primitives::{Primitive, PrimitiveStyleBuilder},
     Drawable,
@@ -35,42 +35,41 @@ where
 {
     // TODO refactor so these styles can be shared across draw functions
     let backdrop_style = embedded_graphics::primitives::PrimitiveStyleBuilder::new()
-        .fill_color(embedded_graphics::pixelcolor::Rgb565::BLACK)
+        .fill_color(DisplayColor::BLACK)
         .build();
-    let text_style = embedded_graphics::mono_font::MonoTextStyleBuilder::new()
+    let character_style = embedded_graphics::mono_font::MonoTextStyleBuilder::new()
         .font(&ascii::FONT_9X15)
         .text_color(DisplayColor::WHITE)
         .background_color(DisplayColor::BLACK)
+        .build();
+    let text_style = embedded_graphics::text::TextStyleBuilder::new()
+        .baseline(embedded_graphics::text::Baseline::Top)
         .build();
 
     for (mut text, text_y_pos) in [(title, 40), (artist, 60)] {
         // Truncate the text length to fit the screen. We should do
         // something better here eventually.
         let char_width = 9;
+        let char_height = 15;
         let max_chars = (LCD_W / char_width) as usize;
         if text.len() > max_chars {
             text = &text[0..max_chars];
         }
 
         // writing new text
-        let next = embedded_graphics::text::Text::new(
+        let next = embedded_graphics::text::Text::with_text_style(
             text,
             embedded_graphics::prelude::Point::new(10, text_y_pos),
+            character_style,
             text_style,
         )
         .draw(display)?;
 
-        // TODO it would be a lot nicer if it was possible to define a text style that
-        // set a background color and specified the top baseline. Top baseline makes the
-        // text draw from a point specified at the top left corner, which matches how
-        // shapes are drawn.
-        let text_baseline = 11;
-        let text_height = 15;
         // Draw over any text that might be leftover from previous draw
         // This is only strictly needed when drawing something shorter than before
         embedded_graphics::primitives::Rectangle::new(
-            embedded_graphics::prelude::Point::new(next.x, next.y - text_baseline),
-            embedded_graphics::prelude::Size::new((LCD_W - next.x as u16) as u32, text_height),
+            next,
+            embedded_graphics::prelude::Size::new((LCD_W - next.x as u16) as u32, char_height),
         )
         .into_styled(backdrop_style)
         .draw(display)?;
@@ -108,10 +107,13 @@ where
     E: core::fmt::Debug,
 {
     // TODO factor these styles out so they aren't defined in multiple places
-    let text_style = embedded_graphics::mono_font::MonoTextStyleBuilder::new()
+    let character_style = embedded_graphics::mono_font::MonoTextStyleBuilder::new()
         .font(&ascii::FONT_7X14_BOLD)
         .text_color(DisplayColor::WHITE)
         .background_color(DisplayColor::BLACK)
+        .build();
+    let text_style = embedded_graphics::text::TextStyleBuilder::new()
+        .baseline(embedded_graphics::text::Baseline::Top)
         .build();
 
     // The unwrap on the write! is safe because we can tell statically that we've
@@ -126,11 +128,12 @@ where
     .unwrap();
 
     let text_x_pos = 0;
-    let text_y_pos = 10;
+    let text_y_pos = 0;
 
-    embedded_graphics::text::Text::new(
+    embedded_graphics::text::Text::with_text_style(
         time_string.as_str(),
         Point::new(text_x_pos, text_y_pos),
+        character_style,
         text_style,
     )
     .draw(display)?;
