@@ -36,17 +36,6 @@ fn main() -> Result<(), core::convert::Infallible> {
     )
     .unwrap();
 
-    app.handle_event(
-        &mut display,
-        start_time.elapsed().as_millis() as u64,
-        AppInput::AppleMedia(AppleMediaServiceData {
-            artist: ArrayString::from_str("Gus Dapperton").unwrap(),
-            album: ArrayString::from_str("Orca").unwrap(),
-            title: ArrayString::from_str("Post Humorous").unwrap(),
-        }),
-    )
-    .unwrap();
-
     let mut charging = true;
     app.handle_event(
         &mut display,
@@ -63,6 +52,20 @@ fn main() -> Result<(), core::convert::Infallible> {
             match event {
                 SimulatorEvent::Quit => break 'running,
                 SimulatorEvent::KeyDown { keycode, .. } => match keycode {
+                    Keycode::Num1 => {
+                        AppInput::AppleMedia(AppleMediaServiceData {
+                            artist: ArrayString::from_str("Gus Dapperton").unwrap(),
+                            album: ArrayString::from_str("Orca").unwrap(),
+                            title: ArrayString::from_str("Post Humorous").unwrap(),
+                        })
+                    }
+                    Keycode::Num2 => {
+                        AppInput::AppleMedia(AppleMediaServiceData {
+                            artist: ArrayString::from_str("Meltt").unwrap(),
+                            album: ArrayString::from_str("Swim Slowly").unwrap(),
+                            title: ArrayString::from_str("Love Again").unwrap(),
+                        })
+                    }
                     Keycode::B => {
                         charging = !charging;
                         AppInput::Battery(BatteryData { charging })
