@@ -1,5 +1,5 @@
 use ahora_app::{
-    interface::{AppInput, Touch},
+    interface::{AppInput, AppOutput, MediaControl, Touch},
     App,
 };
 use embassy_futures::select::{select, select4, Either, Either4::*};
@@ -21,6 +21,13 @@ pub static TOUCH_DATA: embassy_sync::channel::Channel<
 pub static BUTTON_DATA: embassy_sync::channel::Channel<
     embassy_sync::blocking_mutex::raw::ThreadModeRawMutex,
     (),
+    5,
+> = embassy_sync::channel::Channel::new();
+
+// These are outputs from the app.
+pub static MEDIA_CONTROL: embassy_sync::channel::Channel<
+    embassy_sync::blocking_mutex::raw::ThreadModeRawMutex,
+    MediaControl,
     5,
 > = embassy_sync::channel::Channel::new();
 
@@ -57,7 +64,14 @@ pub async fn run(mut display: SpiDisplay) -> ! {
         // Currently we are taking this timestamp to mean time when the event is being
         // handled. Is it more appropriate for it to mean time when the event was
         // captured? Do we need both of these times?
-        app.handle_event(&mut display, Instant::now().as_millis(), event)
-            .unwrap();
+        match app
+            .handle_event(&mut display, Instant::now().as_millis(), event)
+            .unwrap()
+        {
+            Some(AppOutput::MediaControl(control)) => MEDIA_CONTROL.send(control).await,
+            None => {
+                // no action to take
+            }
+        }
     }
 }

@@ -16,6 +16,10 @@ pub enum AppInput {
     Tick,
 }
 
+pub enum AppOutput {
+    MediaControl(MediaControl),
+}
+
 pub struct AppleMediaServiceData {
     pub artist: AppleMediaServiceString,
     pub album: AppleMediaServiceString,
@@ -23,6 +27,10 @@ pub struct AppleMediaServiceData {
 }
 const ATT_PAYLOAD_MAX_LEN: usize = 512;
 pub type AppleMediaServiceString = arrayvec::ArrayString<ATT_PAYLOAD_MAX_LEN>;
+
+pub enum MediaControl {
+    TogglePlayPause,
+}
 
 pub struct BatteryData {
     pub charging: bool,

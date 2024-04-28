@@ -3,10 +3,11 @@ use core::{
     mem,
 };
 
-use ahora_app::interface::{AppleMediaServiceData, AppleMediaServiceString};
+use ahora_app::interface::{AppleMediaServiceData, AppleMediaServiceString, MediaControl};
 use arrayvec::ArrayVec;
 use defmt::{debug, info, unwrap};
 use embassy_executor::{SendSpawner, Spawner};
+use embassy_futures::select::{select, Either};
 use nrf_softdevice::ble::gatt_server::builder::ServiceBuilder;
 use nrf_softdevice::ble::gatt_server::characteristic::{Attribute, Metadata, Properties};
 use nrf_softdevice::ble::gatt_server::{set_sys_attrs, RegisterError, WriteOp};
@@ -17,6 +18,8 @@ use nrf_softdevice::ble::{
 };
 use nrf_softdevice::{raw, Softdevice};
 use static_cell::StaticCell;
+
+use crate::event_loop::MEDIA_CONTROL;
 
 pub static APPLE_MEDIA_SERVICE_DATA: embassy_sync::signal::Signal<
     embassy_sync::blocking_mutex::raw::ThreadModeRawMutex,
@@ -311,98 +314,119 @@ pub async fn task_gatt_client(conn: Connection) {
         }
     }
 
+    let client: TimeServiceClient = unwrap!(gatt_client::discover(&conn).await);
+    let e = client.current_time_read().await;
+    info!("response {:?}", e);
+
+    // iOS doesn't seem to send many notifications for the time service, so
+    // for now we only send along the first value received rather than subscribe.
+    TIME_SERVICE_DATA.signal(unwrap!(e));
+
+    let client: AppleMediaServiceClient = unwrap!(gatt_client::discover(&conn).await);
+
+    client.remote_command_cccd_write(true).await.unwrap();
+    client.entity_update_cccd_write(true).await.unwrap();
+
+    let mut a = [0; ATT_PAYLOAD_MAX_LEN];
+    a[0] = ENTITY_ID_TRACK;
+    a[1] = TRACK_ATTRIBUTE_ID_ARTIST;
+    a[2] = TRACK_ATTRIBUTE_ID_ALBUM;
+    a[3] = TRACK_ATTRIBUTE_ID_TITLE;
+    let e = client.entity_update_write(&MyVec { data: a, len: 4 }).await;
+    info!("entity_update write response {:?}", e);
+    unwrap!(e);
+
+    let mut artist = AppleMediaServiceString::new();
+    let mut album = AppleMediaServiceString::new();
+    let mut title = AppleMediaServiceString::new();
+
+    // flush media control, because we don't want to act on commands received before pairing
     loop {
-        let client: TimeServiceClient = unwrap!(gatt_client::discover(&conn).await);
-        let e = client.current_time_read().await;
-        info!("response {:?}", e);
-
-        // iOS doesn't seem to send many notifications for the time service, so
-        // for now we only send along the first value received rather than subscribe.
-
-        if let Ok(current_time) = e {
-            TIME_SERVICE_DATA.signal(current_time);
+        if let Err(_) = MEDIA_CONTROL.try_receive() {
             break;
         }
     }
 
+    // There is an issue here where iOS is either not sending, or we are missing, the initial
+    // media information when we first connect. Then on further song changes, if only the title
+    // changes, iOS only sends the changed data.
+
     loop {
-        let client: AppleMediaServiceClient = unwrap!(gatt_client::discover(&conn).await);
+        let notifications = gatt_client::run(&conn, &client, |event| match event {
+            AppleMediaServiceClientEvent::EntityUpdateNotification(val) => {
+                let entity_id = val.data[0];
+                match entity_id {
+                    2 => {
+                        let attribute_id = val.data[1];
+                        // These flags include a bool indicating the value was truncated
+                        // but for now we ignore this
+                        // let entity_update_flags = val.data[2];
+                        let value = &val.data[3..val.len];
 
-        client.remote_command_cccd_write(true).await.unwrap();
-        client.entity_update_cccd_write(true).await.unwrap();
+                        if let Ok(value_as_str) = core::str::from_utf8(value) {
+                            let attribute = match attribute_id {
+                                0 => {
+                                    // TODO move this from up above to handle
+                                    // the error as we do with fromutf8
+                                    artist = AppleMediaServiceString::from(value_as_str).unwrap();
+                                    "artist"
+                                }
+                                1 => {
+                                    // TODO move this from up above to handle
+                                    // the error as we do with fromutf8
+                                    album = AppleMediaServiceString::from(value_as_str).unwrap();
+                                    "album"
+                                }
+                                2 => {
+                                    // TODO move this from up above to handle
+                                    // the error as we do with fromutf8
+                                    title = AppleMediaServiceString::from(value_as_str).unwrap();
+                                    APPLE_MEDIA_SERVICE_DATA.signal(AppleMediaServiceData {
+                                        artist,
+                                        album,
+                                        title,
+                                    });
+                                    // TODO may want to clear the data here so we don't
+                                    // accidentally send stale data
 
-        let mut a = [0; ATT_PAYLOAD_MAX_LEN];
-        a[0] = ENTITY_ID_TRACK;
-        a[1] = TRACK_ATTRIBUTE_ID_ARTIST;
-        a[2] = TRACK_ATTRIBUTE_ID_ALBUM;
-        a[3] = TRACK_ATTRIBUTE_ID_TITLE;
-        let e = client.entity_update_write(&MyVec { data: a, len: 4 }).await;
-        info!("entity_update write response {:?}", e);
+                                    // TODO there is a bug here because iOS will only
+                                    // send the values that change. So if we skip
+                                    // from one song to another that has the exact
+                                    // same title - our code would not generate
+                                    // a data changed event.
 
-        let mut artist = AppleMediaServiceString::new();
-        let mut album = AppleMediaServiceString::new();
-        let mut title = AppleMediaServiceString::new();
-        if e.is_ok() {
-            gatt_client::run(&conn, &client, |event| match event {
-                AppleMediaServiceClientEvent::EntityUpdateNotification(val) => {
-                    let entity_id = val.data[0];
-                    match entity_id {
-                        2 => {
-                            let attribute_id = val.data[1];
-                            // These flags include a bool indicating the value was truncated
-                            // but for now we ignore this
-                            // let entity_update_flags = val.data[2];
-                            let value = &val.data[3..val.len];
+                                    "title"
+                                }
+                                3 => "duration",
+                                _ => "unknown",
+                            };
 
-                            if let Ok(value_as_str) = core::str::from_utf8(value) {
-                                let attribute = match attribute_id {
-                                    0 => {
-                                        // TODO move this from up above to handle
-                                        // the error as we do with fromutf8
-                                        artist =
-                                            AppleMediaServiceString::from(value_as_str).unwrap();
-                                        "artist"
-                                    }
-                                    1 => {
-                                        // TODO move this from up above to handle
-                                        // the error as we do with fromutf8
-                                        album =
-                                            AppleMediaServiceString::from(value_as_str).unwrap();
-                                        "album"
-                                    }
-                                    2 => {
-                                        // TODO move this from up above to handle
-                                        // the error as we do with fromutf8
-                                        title =
-                                            AppleMediaServiceString::from(value_as_str).unwrap();
-                                        APPLE_MEDIA_SERVICE_DATA.signal(AppleMediaServiceData {
-                                            artist,
-                                            album,
-                                            title,
-                                        });
-                                        // TODO may want to clear the data here so we don't
-                                        // accidentally send stale data
-
-                                        "title"
-                                    }
-                                    3 => "duration",
-                                    _ => "unknown",
-                                };
-
-                                info!("{}: {}", attribute, value_as_str);
-                            } else {
-                                info!("invalid utf8 received");
-                            }
+                            info!("{}: {}", attribute, value_as_str);
+                        } else {
+                            info!("invalid utf8 received");
                         }
-                        _ => info!("unknown entity ID"),
-                    };
-                }
-                AppleMediaServiceClientEvent::RemoteCommandNotification(val) => {
-                    info!("remote command notification: {}", val);
-                }
-            })
-            .await;
-        }
+                    }
+                    _ => info!("unknown entity ID"),
+                };
+            }
+            AppleMediaServiceClientEvent::RemoteCommandNotification(val) => {
+                info!("remote command notification: {}", val);
+            }
+        });
+        match select(notifications, MEDIA_CONTROL.receive()).await {
+            Either::First(_) => continue,
+            Either::Second(command) => {
+                unwrap!(
+                    client
+                        .remote_command_write(
+                            &(match command {
+                                MediaControl::TogglePlayPause => 2,
+                            })
+                        )
+                        .await
+                );
+            }
+        };
     }
 }
 

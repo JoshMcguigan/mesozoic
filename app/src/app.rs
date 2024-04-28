@@ -5,7 +5,9 @@ use embedded_graphics::draw_target::DrawTarget;
 
 use crate::{
     display::{draw_audio, draw_battery, draw_bg, draw_fps, draw_time},
-    interface::{AppInput, AppleMediaServiceData, DisplayColor, TimeOfDay},
+    interface::{
+        AppInput, AppOutput, AppleMediaServiceData, DisplayColor, MediaControl, TimeOfDay,
+    },
 };
 
 pub struct App {
@@ -118,7 +120,7 @@ impl App {
         display: &mut D,
         ms_since_boot: u64,
         event: AppInput,
-    ) -> Result<(), D::Error>
+    ) -> Result<Option<AppOutput>, D::Error>
     where
         D: DrawTarget<Color = DisplayColor, Error = E>,
         E: core::fmt::Debug,
@@ -126,16 +128,19 @@ impl App {
         self.time.previous_ms_since_boot = self.time.current_ms_since_boot;
         self.time.current_ms_since_boot = ms_since_boot;
 
-        match event {
+        let output = match event {
             AppInput::AppleMedia(e) => {
                 self.media = Some(e);
+                None
             }
             AppInput::Battery(e) => {
                 self.charging = e.charging;
+                None
             }
             AppInput::Time(e) => {
                 self.time.last_specified_time = e;
                 self.time.ms_since_boot_when_time_last_specified = ms_since_boot;
+                None
             }
             AppInput::Touch(touch) => {
                 // TODO replace this with something reasonable
@@ -150,6 +155,10 @@ impl App {
                     artist: y,
                     album: ArrayString::<512>::new(),
                 });
+
+                // TODO we should only do this after pairing, and when the
+                // touch overlaps with a play/pause button
+                Some(AppOutput::MediaControl(MediaControl::TogglePlayPause))
 
                 // y is displaying horizontal offset something like 0-239, although
                 // i've never seen zero
@@ -173,15 +182,17 @@ impl App {
             AppInput::ButtonPressed => {
                 let new_window = self.active_window.next();
                 self.active_window = new_window;
+                None
             }
             AppInput::Tick => {
                 // this just triggers a re-draw
+                None
             }
         };
 
         self.draw(display)?;
 
-        Ok(())
+        Ok(output)
     }
 
     fn draw<D, E>(&self, display: &mut D) -> Result<(), E>
