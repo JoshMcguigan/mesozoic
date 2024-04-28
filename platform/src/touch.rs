@@ -3,7 +3,6 @@ use defmt::{info, unwrap};
 use embassy_nrf::{
     bind_interrupts,
     gpio::{Input, Pull},
-    interrupt::{InterruptExt, Priority},
     peripherals::{P0_06, P0_07, P0_10, P0_28, TWISPI0},
     twim::{self, Twim},
 };

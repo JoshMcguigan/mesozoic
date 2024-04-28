@@ -235,13 +235,13 @@ struct AppleMediaServiceClient {
 
 #[nrf_softdevice::gatt_client(uuid = "180f")]
 struct BatteryServiceClient {
-    #[characteristic(uuid = "2a19", read, write, notify)]
+    #[characteristic(uuid = "2a19", read)]
     battery_level: u8,
 }
 
 #[nrf_softdevice::gatt_client(uuid = "1805")]
 struct TimeServiceClient {
-    #[characteristic(uuid = "2a2b", read, notify)]
+    #[characteristic(uuid = "2a2b", read)]
     current_time: CurrentTime,
 }
 
