@@ -140,3 +140,45 @@ where
 
     Ok(())
 }
+
+pub(crate) fn draw_fps<D, E>(display: &mut D, fps: u32) -> Result<(), E>
+where
+    D: DrawTarget<Color = DisplayColor, Error = E>,
+    E: core::fmt::Debug,
+{
+    // TODO factor these styles out so they aren't defined in multiple places
+    let character_style = embedded_graphics::mono_font::MonoTextStyleBuilder::new()
+        .font(&ascii::FONT_7X14)
+        .text_color(DisplayColor::WHITE)
+        .background_color(DisplayColor::BLACK)
+        .build();
+    let text_style = embedded_graphics::text::TextStyleBuilder::new()
+        .baseline(embedded_graphics::text::Baseline::Top)
+        .build();
+
+    // The unwrap on the write! is safe because we can tell statically that we've
+    // allocated enough characters to fit this string.
+    const NUM_CHARS: usize = 8;
+    let mut s = ArrayString::<NUM_CHARS>::new();
+    write!(
+        &mut s,
+        "FPS: {:03}",
+        // Limit the displayed fps value to max we can fit in three characters
+        fps.min(999),
+    )
+    .unwrap();
+
+    let char_height = 14;
+    let text_x_pos = 0;
+    let text_y_pos = 240 - char_height;
+
+    embedded_graphics::text::Text::with_text_style(
+        s.as_str(),
+        Point::new(text_x_pos, text_y_pos),
+        character_style,
+        text_style,
+    )
+    .draw(display)?;
+
+    Ok(())
+}

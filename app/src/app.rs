@@ -4,7 +4,7 @@ use arrayvec::ArrayString;
 use embedded_graphics::draw_target::DrawTarget;
 
 use crate::{
-    display::{draw_audio, draw_battery, draw_bg, draw_time},
+    display::{draw_audio, draw_battery, draw_bg, draw_fps, draw_time},
     interface::{AppInput, AppleMediaServiceData, DisplayColor, TimeOfDay},
 };
 
@@ -34,6 +34,8 @@ struct TimeState {
     ms_since_boot_when_time_last_specified: u64,
     last_specified_time: TimeOfDay,
     current_ms_since_boot: u64,
+    /// Used only to tell how quickly we are processing updates.
+    previous_ms_since_boot: u64,
 }
 
 impl TimeState {
@@ -89,6 +91,7 @@ impl App {
                 ms_since_boot_when_time_last_specified: ms_since_boot,
                 last_specified_time: TimeOfDay::default(),
                 current_ms_since_boot: ms_since_boot,
+                previous_ms_since_boot: ms_since_boot,
             },
             media: None,
             charging: false,
@@ -120,6 +123,7 @@ impl App {
         D: DrawTarget<Color = DisplayColor, Error = E>,
         E: core::fmt::Debug,
     {
+        self.time.previous_ms_since_boot = self.time.current_ms_since_boot;
         self.time.current_ms_since_boot = ms_since_boot;
 
         match event {
@@ -198,6 +202,14 @@ impl App {
                 draw_bg(display)?;
             }
         }
+
+        // For now FPS is drawn at the bottom of every window.
+        // TODO handle roll-over
+        // max(1) to avoid divide by zero
+        let fps =
+            1000 / (self.time.current_ms_since_boot - self.time.previous_ms_since_boot).max(1);
+        draw_fps(display, fps as u32)?;
+
         Ok(())
     }
 }

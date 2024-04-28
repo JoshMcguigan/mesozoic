@@ -77,7 +77,7 @@ fn main() -> Result<(), core::convert::Infallible> {
                     y: point.y as u8,
                 }),
                 _ => {
-                    continue;
+                    AppInput::Tick
                 }
             }
         } else {
