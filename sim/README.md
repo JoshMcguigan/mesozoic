@@ -1,3 +1,3 @@
-# Ahora - PineTime Simulator
+# Mesozoic - PineTime Simulator
 
-This crate stores the Ahora / PineTime simulator.
+This crate stores the Mesozoic / PineTime simulator.

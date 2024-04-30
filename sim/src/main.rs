@@ -1,6 +1,6 @@
 use std::{str::FromStr, time::Instant};
 
-use ahora_app::{
+use mesozoic_app::{
     interface::{
         AppInput, AppleMediaServiceData, BatteryData, Gesture, TimeOfDay, Touch, TouchType, LCD_H,
         LCD_W,
@@ -19,7 +19,7 @@ type DisplayColor = embedded_graphics::pixelcolor::Rgb565;
 fn main() -> Result<(), core::convert::Infallible> {
     let mut display: SimulatorDisplay<DisplayColor> =
         SimulatorDisplay::new(Size::new(LCD_W as u32, LCD_H as u32));
-    let mut window = Window::new("Ahora", &OutputSettings::default());
+    let mut window = Window::new("Mesozoic", &OutputSettings::default());
     let start_time = Instant::now();
 
     let mut app = App::init(&mut display, start_time.elapsed().as_millis() as u64).unwrap();

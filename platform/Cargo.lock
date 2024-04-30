@@ -22,37 +22,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ahora-app"
-version = "0.1.0"
-dependencies = [
- "arrayvec",
- "embedded-graphics",
-]
-
-[[package]]
-name = "ahora-platform"
-version = "0.1.0"
-dependencies = [
- "ahora-app",
- "arrayvec",
- "cortex-m",
- "cortex-m-rt",
- "defmt",
- "defmt-rtt",
- "display-interface-spi",
- "embassy-executor",
- "embassy-futures",
- "embassy-nrf",
- "embassy-sync",
- "embassy-time",
- "mipidsi",
- "nrf-softdevice",
- "nrf-softdevice-s132",
- "panic-probe",
- "static_cell",
-]
-
-[[package]]
 name = "arrayvec"
 version = "0.7.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -715,6 +684,37 @@ name = "memchr"
 version = "2.6.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f665ee40bc4a3c5590afb1e9677db74a508659dfd71e126420da8274909a0167"
+
+[[package]]
+name = "mesozoic-app"
+version = "0.1.0"
+dependencies = [
+ "arrayvec",
+ "embedded-graphics",
+]
+
+[[package]]
+name = "mesozoic-platform"
+version = "0.1.0"
+dependencies = [
+ "arrayvec",
+ "cortex-m",
+ "cortex-m-rt",
+ "defmt",
+ "defmt-rtt",
+ "display-interface-spi",
+ "embassy-executor",
+ "embassy-futures",
+ "embassy-nrf",
+ "embassy-sync",
+ "embassy-time",
+ "mesozoic-app",
+ "mipidsi",
+ "nrf-softdevice",
+ "nrf-softdevice-s132",
+ "panic-probe",
+ "static_cell",
+]
 
 [[package]]
 name = "micromath"

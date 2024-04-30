@@ -1,3 +1,3 @@
-# Ahora - PineTime Application
+# Mesozoic - PineTime Application
 
-This crate stores the application level logic for Ahora.
+This crate stores the application level logic for Mesozoic.

@@ -1,10 +1,10 @@
 [package]
-name = "ahora-platform"
+name = "mesozoic-platform"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-ahora-app = { path = "../app" }
+mesozoic-app = { path = "../app" }
 
 cortex-m = "0.7"
 cortex-m-rt = "0.7"

@@ -1,4 +1,4 @@
-use ahora_app::{
+use mesozoic_app::{
     interface::{AppInput, AppOutput, MediaControl, Touch},
     App,
 };

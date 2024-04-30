@@ -15,24 +15,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "aae1277d39aeec15cb388266ecc24b11c80469deae6067e17a1a7aa9e5c1f234"
 
 [[package]]
-name = "ahora-app"
-version = "0.1.0"
-dependencies = [
- "arrayvec",
- "embedded-graphics",
-]
-
-[[package]]
-name = "ahora-sim"
-version = "0.1.0"
-dependencies = [
- "ahora-app",
- "arrayvec",
- "embedded-graphics",
- "embedded-graphics-simulator",
-]
-
-[[package]]
 name = "aliasable"
 version = "0.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -242,6 +224,24 @@ name = "libc"
 version = "0.2.153"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9c198f91728a82281a64e1f4f9eeb25d82cb32a5de251c6bd1b5154d63a8e7bd"
+
+[[package]]
+name = "mesozoic-app"
+version = "0.1.0"
+dependencies = [
+ "arrayvec",
+ "embedded-graphics",
+]
+
+[[package]]
+name = "mesozoic-sim"
+version = "0.1.0"
+dependencies = [
+ "arrayvec",
+ "embedded-graphics",
+ "embedded-graphics-simulator",
+ "mesozoic-app",
+]
 
 [[package]]
 name = "micromath"

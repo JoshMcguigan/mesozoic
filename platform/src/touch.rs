@@ -1,4 +1,4 @@
-use ahora_app::interface::Touch;
+use mesozoic_app::interface::Touch;
 use defmt::{info, unwrap};
 use embassy_nrf::{
     bind_interrupts,

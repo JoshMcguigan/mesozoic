@@ -1,4 +1,4 @@
-# Ahora - PineTime Platform
+# Mesozoic - PineTime Platform
 
 ## Debugger connection
 
