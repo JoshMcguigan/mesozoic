@@ -1,4 +1,3 @@
-use mesozoic_app::interface::Touch;
 use defmt::{info, unwrap};
 use embassy_nrf::{
     bind_interrupts,
@@ -6,6 +5,7 @@ use embassy_nrf::{
     peripherals::{P0_06, P0_07, P0_10, P0_28, TWISPI0},
     twim::{self, Twim},
 };
+use mesozoic_app::interface::Touch;
 
 use crate::event_loop::TOUCH_DATA;
 

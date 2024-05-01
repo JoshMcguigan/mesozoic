@@ -1,9 +1,9 @@
+use embassy_futures::select::{select, select4, Either, Either4::*};
+use embassy_time::Instant;
 use mesozoic_app::{
     interface::{AppInput, AppOutput, MediaControl, Touch},
     App,
 };
-use embassy_futures::select::{select, select4, Either, Either4::*};
-use embassy_time::Instant;
 
 use crate::{
     battery::BATTERY_DATA,

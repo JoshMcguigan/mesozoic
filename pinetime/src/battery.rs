@@ -1,8 +1,8 @@
-use mesozoic_app::interface::BatteryData;
 use embassy_nrf::{
     gpio::{Input, Pull},
     peripherals::{P0_12, P0_31},
 };
+use mesozoic_app::interface::BatteryData;
 
 pub static BATTERY_DATA: embassy_sync::signal::Signal<
     embassy_sync::blocking_mutex::raw::ThreadModeRawMutex,

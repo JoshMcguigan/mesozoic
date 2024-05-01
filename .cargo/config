@@ -1,0 +1,21 @@
+# Aliases are prefixed with `m` (mesozoic) to avoid conflicts with built-ins.
+
+[alias]
+mpinetime = [
+    "run",
+    "--manifest-path",
+    "pinetime/Cargo.toml",
+    "--target",
+    "thumbv7em-none-eabihf",
+    "--config",
+    "target.'cfg(all(target_arch = \"arm\", target_os = \"none\"))'.runner = 'probe-rs run --chip nRF52832_xxAA'",
+    "--config",
+    "profile.dev.opt-level=3",
+    "--",
+]
+msim = [
+    "run",
+    "--bin",
+    "mesozoic-sim",
+    "--",
+]

@@ -3,11 +3,11 @@ use core::{
     mem,
 };
 
-use mesozoic_app::interface::{AppleMediaServiceData, AppleMediaServiceString, MediaControl};
 use arrayvec::ArrayVec;
 use defmt::{debug, info, unwrap};
 use embassy_executor::{SendSpawner, Spawner};
 use embassy_futures::select::{select, Either};
+use mesozoic_app::interface::{AppleMediaServiceData, AppleMediaServiceString, MediaControl};
 use nrf_softdevice::ble::gatt_server::builder::ServiceBuilder;
 use nrf_softdevice::ble::gatt_server::characteristic::{Attribute, Metadata, Properties};
 use nrf_softdevice::ble::gatt_server::{set_sys_attrs, RegisterError, WriteOp};

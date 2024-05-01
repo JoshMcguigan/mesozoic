@@ -1,10 +1,10 @@
-use mesozoic_app::interface::{LCD_H, LCD_W};
 use embassy_nrf::{
     bind_interrupts,
     gpio::{Level, Output, OutputDrive},
     peripherals::{P0_02, P0_03, P0_04, P0_14, P0_18, P0_25, TWISPI1},
     spim::{self, Spim},
 };
+use mesozoic_app::interface::{LCD_H, LCD_W};
 
 bind_interrupts!(struct Irqs {
     SPIM1_SPIS1_TWIM1_TWIS1_SPI1_TWI1 => spim::InterruptHandler<TWISPI1>;

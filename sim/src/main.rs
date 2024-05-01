@@ -52,20 +52,16 @@ fn main() -> Result<(), core::convert::Infallible> {
             match event {
                 SimulatorEvent::Quit => break 'running,
                 SimulatorEvent::KeyDown { keycode, .. } => match keycode {
-                    Keycode::Num1 => {
-                        AppInput::AppleMedia(AppleMediaServiceData {
-                            artist: ArrayString::from_str("Gus Dapperton").unwrap(),
-                            album: ArrayString::from_str("Orca").unwrap(),
-                            title: ArrayString::from_str("Post Humorous").unwrap(),
-                        })
-                    }
-                    Keycode::Num2 => {
-                        AppInput::AppleMedia(AppleMediaServiceData {
-                            artist: ArrayString::from_str("Meltt").unwrap(),
-                            album: ArrayString::from_str("Swim Slowly").unwrap(),
-                            title: ArrayString::from_str("Love Again").unwrap(),
-                        })
-                    }
+                    Keycode::Num1 => AppInput::AppleMedia(AppleMediaServiceData {
+                        artist: ArrayString::from_str("Gus Dapperton").unwrap(),
+                        album: ArrayString::from_str("Orca").unwrap(),
+                        title: ArrayString::from_str("Post Humorous").unwrap(),
+                    }),
+                    Keycode::Num2 => AppInput::AppleMedia(AppleMediaServiceData {
+                        artist: ArrayString::from_str("Meltt").unwrap(),
+                        album: ArrayString::from_str("Swim Slowly").unwrap(),
+                        title: ArrayString::from_str("Love Again").unwrap(),
+                    }),
                     Keycode::B => {
                         charging = !charging;
                         AppInput::Battery(BatteryData { charging })
@@ -79,9 +75,7 @@ fn main() -> Result<(), core::convert::Infallible> {
                     x: point.x as u8,
                     y: point.y as u8,
                 }),
-                _ => {
-                    AppInput::Tick
-                }
+                _ => AppInput::Tick,
             }
         } else {
             AppInput::Tick
