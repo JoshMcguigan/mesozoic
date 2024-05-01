@@ -18,6 +18,8 @@ The fastest way to get started with Mesozoic is using the simulator.
 cargo msim
 ```
 
+![simulator](https://github.com/JoshMcguigan/mesozoic/assets/22216761/3a427d5c-f84e-43b5-9b4e-f6f11a7c7ad1)
+
 ### Simulator dependencies
 
 The simulator uses SDL2 and its development libraries. Installation instructions are available [here](https://github.com/embedded-graphics/simulator?tab=readme-ov-file#setup).
