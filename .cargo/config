@@ -19,3 +19,9 @@ msim = [
     "mesozoic-sim",
     "--",
 ]
+mapp-test = [
+    "test",
+    "-p",
+    "mesozoic-app",
+    "--",
+]

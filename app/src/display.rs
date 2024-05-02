@@ -44,7 +44,6 @@ where
         .build();
     let text_style = embedded_graphics::text::TextStyleBuilder::new()
         .baseline(embedded_graphics::text::Baseline::Top)
-        .alignment(embedded_graphics::text::Alignment::Center)
         .build();
 
     for (mut text, text_y_pos) in [(title, 40), (artist, 60)] {
@@ -59,6 +58,8 @@ where
 
         let remaining_horizontal_space = (LCD_W - (text.len() * char_width as usize) as u16) as u32;
         let is_odd = remaining_horizontal_space % 2 != 0;
+        let left_padding = (remaining_horizontal_space / 2) + if is_odd { 1 } else { 0 };
+        let right_padding = remaining_horizontal_space / 2;
 
         // Draw over any text that might be leftover from previous draw
         // This is only strictly needed when drawing something shorter than before
@@ -67,7 +68,7 @@ where
         embedded_graphics::primitives::Rectangle::new(
             Point::new(0, text_y_pos),
             embedded_graphics::prelude::Size::new(
-                (remaining_horizontal_space / 2) + if is_odd { 1 } else { 0 },
+                left_padding,
                 char_height,
             ),
         )
@@ -75,7 +76,7 @@ where
         .draw(display)?;
         embedded_graphics::primitives::Rectangle::new(
             Point::new(
-                (LCD_W as u32 - (remaining_horizontal_space / 2)) as i32,
+                (LCD_W as u32 - (right_padding)) as i32,
                 text_y_pos,
             ),
             embedded_graphics::prelude::Size::new(remaining_horizontal_space / 2, char_height),
@@ -86,7 +87,7 @@ where
         // writing new text
         embedded_graphics::text::Text::with_text_style(
             text,
-            embedded_graphics::prelude::Point::new((LCD_W / 2) as i32, text_y_pos),
+            embedded_graphics::prelude::Point::new(left_padding as i32, text_y_pos),
             character_style,
             text_style,
         )
@@ -199,4 +200,77 @@ where
     .draw(display)?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    extern crate std;
+
+    use super::*;
+
+    // Taken from stdext: https://docs.rs/stdext/0.3.3/src/stdext/macros.rs.html#63-74
+    macro_rules! function_name {
+        () => {{
+            fn f() {}
+            fn type_name_of<T>(_: T) -> &'static str {
+                std::any::type_name::<T>()
+            }
+            let name = type_name_of(f);
+            // `3` is the length of the `::f`.
+            &name[..name.len() - 3]
+        }};
+    }
+
+    type SimDisplay = embedded_graphics_simulator::SimulatorDisplay<DisplayColor>;
+
+    fn assert_snapshot(test_name: &str, display: SimDisplay) {
+        let test_image_path = std::format!("snapshots/{test_name}.test.png");
+        let golden_image_path = std::format!("snapshots/{test_name}.golden.png");
+
+        let golden = std::fs::read(&golden_image_path);
+        match golden {
+            Ok(golden_image) => {
+                // There is an existing golden image. Save our current image for reference by
+                // the user.
+                display
+                    .to_rgb_output_image(&core::default::Default::default())
+                    .save_png(&test_image_path)
+                    .unwrap();
+
+                // Now compare the test image to the golden image.
+                // Kindof hacky to read this back in right after we wrote it out, but
+                // meh good enough for now.
+                let test_image = std::fs::read(&test_image_path).unwrap();
+                assert_eq!(
+                    test_image, golden_image,
+                    "{test_image_path} does not match {golden_image_path}"
+                );
+            }
+            Err(_) => {
+                // There is no golden image.
+                //
+                // This is either a new test, or the user has deleted the golden image
+                // on purpose. In either case, save the current result as the golden image.
+                display
+                    .to_rgb_output_image(&core::default::Default::default())
+                    .save_png(&golden_image_path)
+                    .unwrap();
+            }
+        }
+    }
+
+    #[test]
+    fn audio() {
+        let test_name = function_name!();
+        let mut display = SimDisplay::new(
+            Size::new(LCD_W as u32, LCD_H as u32),
+        );
+
+        // First draw long strings, then shorter ones, to show we properly clear
+        // out the old text.
+        draw_audio(&mut display, "long artist", "long title").unwrap();
+        draw_audio(&mut display, "artist", "title").unwrap();
+
+        assert_snapshot(test_name, display);
+    }
 }
