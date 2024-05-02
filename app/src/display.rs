@@ -44,6 +44,7 @@ where
         .build();
     let text_style = embedded_graphics::text::TextStyleBuilder::new()
         .baseline(embedded_graphics::text::Baseline::Top)
+        .alignment(embedded_graphics::text::Alignment::Center)
         .build();
 
     for (mut text, text_y_pos) in [(title, 40), (artist, 60)] {
@@ -56,22 +57,39 @@ where
             text = &text[0..max_chars];
         }
 
-        // writing new text
-        let next = embedded_graphics::text::Text::with_text_style(
-            text,
-            embedded_graphics::prelude::Point::new(10, text_y_pos),
-            character_style,
-            text_style,
-        )
-        .draw(display)?;
+        let remaining_horizontal_space = (LCD_W - (text.len() * char_width as usize) as u16) as u32;
+        let is_odd = remaining_horizontal_space % 2 != 0;
 
         // Draw over any text that might be leftover from previous draw
         // This is only strictly needed when drawing something shorter than before
+        // Since for now we draw this on every screen refresh, we don't draw over the text
+        // we are about to draw (and likely previously drew) or else the text will flicker.
         embedded_graphics::primitives::Rectangle::new(
-            next,
-            embedded_graphics::prelude::Size::new((LCD_W - next.x as u16) as u32, char_height),
+            Point::new(0, text_y_pos),
+            embedded_graphics::prelude::Size::new(
+                (remaining_horizontal_space / 2) + if is_odd { 1 } else { 0 },
+                char_height,
+            ),
         )
         .into_styled(backdrop_style)
+        .draw(display)?;
+        embedded_graphics::primitives::Rectangle::new(
+            Point::new(
+                (LCD_W as u32 - (remaining_horizontal_space / 2)) as i32,
+                text_y_pos,
+            ),
+            embedded_graphics::prelude::Size::new(remaining_horizontal_space / 2, char_height),
+        )
+        .into_styled(backdrop_style)
+        .draw(display)?;
+
+        // writing new text
+        embedded_graphics::text::Text::with_text_style(
+            text,
+            embedded_graphics::prelude::Point::new((LCD_W / 2) as i32, text_y_pos),
+            character_style,
+            text_style,
+        )
         .draw(display)?;
     }
 
