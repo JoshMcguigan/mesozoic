@@ -18,11 +18,26 @@ The fastest way to get started with Mesozoic is using the simulator.
 cargo msim
 ```
 
-![simulator](https://github.com/JoshMcguigan/mesozoic/assets/22216761/3a427d5c-f84e-43b5-9b4e-f6f11a7c7ad1)
+![simulator](https://github.com/JoshMcguigan/mesozoic/assets/22216761/5c302d33-f818-4104-acf2-88095b7c7cad)
 
 ### Simulator dependencies
 
 The simulator uses SDL2 and its development libraries. Installation instructions are available [here](https://github.com/embedded-graphics/simulator?tab=readme-ov-file#setup).
+
+## Unit tests
+
+Run the unit tests with:
+
+```sh
+# See .cargo/config for the full definition of this alias.
+cargo mapp-test
+```
+
+Mesozoic includes some snapshot tests. The snapshots can be updated with:
+
+```sh
+cp app/snapshots/*{test,golden}.png
+```
 
 ## Using Mesozoic on real hardware
 

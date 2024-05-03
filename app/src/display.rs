@@ -5,8 +5,9 @@ use embedded_graphics::{
     draw_target::DrawTarget,
     geometry::{Point, Size},
     mono_font::ascii,
+    pixelcolor::WebColors,
     prelude::RgbColor,
-    primitives::{Primitive, PrimitiveStyleBuilder},
+    primitives::{Primitive, PrimitiveStyleBuilder, Triangle},
     Drawable,
 };
 
@@ -67,18 +68,12 @@ where
         // we are about to draw (and likely previously drew) or else the text will flicker.
         embedded_graphics::primitives::Rectangle::new(
             Point::new(0, text_y_pos),
-            embedded_graphics::prelude::Size::new(
-                left_padding,
-                char_height,
-            ),
+            embedded_graphics::prelude::Size::new(left_padding, char_height),
         )
         .into_styled(backdrop_style)
         .draw(display)?;
         embedded_graphics::primitives::Rectangle::new(
-            Point::new(
-                (LCD_W as u32 - (right_padding)) as i32,
-                text_y_pos,
-            ),
+            Point::new((LCD_W as u32 - (right_padding)) as i32, text_y_pos),
             embedded_graphics::prelude::Size::new(remaining_horizontal_space / 2, char_height),
         )
         .into_styled(backdrop_style)
@@ -93,6 +88,20 @@ where
         )
         .draw(display)?;
     }
+
+    Triangle::new(
+        Point::new(100, 100),
+        Point::new(100, 140),
+        Point::new(140, 120),
+    )
+    .into_styled(
+        PrimitiveStyleBuilder::new()
+            .stroke_width(2)
+            .fill_color(DisplayColor::new(85, 255, 85))
+            .stroke_color(DisplayColor::CSS_GRAY)
+            .build(),
+    )
+    .draw(display)?;
 
     Ok(())
 }
@@ -113,7 +122,7 @@ where
     .into_styled(
         PrimitiveStyleBuilder::new()
             .stroke_width(2)
-            .stroke_color(DisplayColor::WHITE)
+            .stroke_color(DisplayColor::CSS_GRAY)
             .fill_color(fill_color)
             .build(),
     )
@@ -262,9 +271,7 @@ mod tests {
     #[test]
     fn audio() {
         let test_name = function_name!();
-        let mut display = SimDisplay::new(
-            Size::new(LCD_W as u32, LCD_H as u32),
-        );
+        let mut display = SimDisplay::new(Size::new(LCD_W as u32, LCD_H as u32));
 
         // First draw long strings, then shorter ones, to show we properly clear
         // out the old text.
