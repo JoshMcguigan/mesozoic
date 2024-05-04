@@ -13,10 +13,34 @@ mpinetime = [
     "profile.dev.opt-level=3",
     "--",
 ]
+mpinetime-check = [
+    "check",
+    "--manifest-path",
+    "pinetime/Cargo.toml",
+    "--target",
+    "thumbv7em-none-eabihf",
+    "--config",
+    "target.'cfg(all(target_arch = \"arm\", target_os = \"none\"))'.runner = 'probe-rs run --chip nRF52832_xxAA'",
+    "--config",
+    "profile.dev.opt-level=3",
+    "--",
+]
 msim = [
     "run",
     "--bin",
     "mesozoic-sim",
+    "--",
+]
+msim-check = [
+    "check",
+    "--bin",
+    "mesozoic-sim",
+    "--",
+]
+mapp-check = [
+    "check",
+    "-p",
+    "mesozoic-app",
     "--",
 ]
 mapp-test = [

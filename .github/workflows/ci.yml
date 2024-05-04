@@ -1,0 +1,26 @@
+name: CI
+
+on: [push, pull_request]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Setup target
+      run: rustup target add thumbv7em-none-eabihf
+    - name: Check pinetime
+      run: cargo mpinetime-check
+    - name: Check sim
+      run: cargo msim-check
+    - name: Check app
+      run: cargo mapp-check
+    - name: Run tests
+      run: cargo mapp-test
+    - name: Check formatting
+      run: cargo fmt --all --check
