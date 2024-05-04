@@ -5,7 +5,7 @@ use embedded_graphics::draw_target::DrawTarget;
 use crate::{
     display::{draw_audio, draw_battery, draw_bg, draw_fps, draw_time},
     interface::{
-        AppInput, AppOutput, AppleMediaServiceData, DisplayColor, Gesture, MediaControl, TimeOfDay
+        AppInput, AppOutput, AppleMediaServiceData, DisplayColor, Gesture, MediaControl, TimeOfDay,
     },
 };
 
@@ -146,8 +146,23 @@ impl App {
                 // touch overlaps with a play/pause button. For now
                 // we check if we have media data, as an indication
                 // we might be paired.
-                if matches!(touch.gesture, Gesture::SingleClick) && self.media.is_some() {
-                    Some(AppOutput::MediaControl(MediaControl::TogglePlayPause))
+                if self.media.is_some() {
+                    match touch.gesture {
+                        Gesture::SingleClick => {
+                            Some(AppOutput::MediaControl(MediaControl::TogglePlayPause))
+                        }
+                        Gesture::SlideRight => {
+                            Some(AppOutput::MediaControl(MediaControl::NextTrack))
+                        }
+                        Gesture::SlideLeft => {
+                            Some(AppOutput::MediaControl(MediaControl::PreviousTrack))
+                        }
+                        Gesture::SlideUp => Some(AppOutput::MediaControl(MediaControl::VolumeUp)),
+                        Gesture::SlideDown => {
+                            Some(AppOutput::MediaControl(MediaControl::VolumeDown))
+                        }
+                        _ => None,
+                    }
                 } else {
                     None
                 }

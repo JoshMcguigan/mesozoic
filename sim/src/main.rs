@@ -2,8 +2,8 @@ use std::{str::FromStr, time::Instant};
 
 use mesozoic_app::{
     interface::{
-        AppInput, AppleMediaServiceData, BatteryData, Gesture, TimeOfDay, Touch, TouchType, LCD_H,
-        LCD_W,
+        AppInput, AppOutput, AppleMediaServiceData, BatteryData, Gesture, MediaControl, TimeOfDay,
+        Touch, TouchType, LCD_H, LCD_W,
     },
     App,
 };
@@ -44,6 +44,20 @@ fn main() -> Result<(), core::convert::Infallible> {
     )
     .unwrap();
 
+    let mut audio_index = 0;
+    let audio = vec![
+        AppleMediaServiceData {
+            artist: ArrayString::from_str("Rustacean Station").unwrap(),
+            album: ArrayString::from_str("April 28, 2023").unwrap(),
+            title: ArrayString::from_str("Rust Embedded WG").unwrap(),
+        },
+        AppleMediaServiceData {
+            artist: ArrayString::from_str("Chats with James").unwrap(),
+            album: ArrayString::from_str("September 29, 2023").unwrap(),
+            title: ArrayString::from_str("014 - Steve Klabnik").unwrap(),
+        },
+    ];
+
     'running: loop {
         window.update(&display);
 
@@ -52,16 +66,7 @@ fn main() -> Result<(), core::convert::Infallible> {
             match event {
                 SimulatorEvent::Quit => break 'running,
                 SimulatorEvent::KeyDown { keycode, .. } => match keycode {
-                    Keycode::Num1 => AppInput::AppleMedia(AppleMediaServiceData {
-                        artist: ArrayString::from_str("Gus Dapperton").unwrap(),
-                        album: ArrayString::from_str("Orca").unwrap(),
-                        title: ArrayString::from_str("Post Humorous").unwrap(),
-                    }),
-                    Keycode::Num2 => AppInput::AppleMedia(AppleMediaServiceData {
-                        artist: ArrayString::from_str("Meltt").unwrap(),
-                        album: ArrayString::from_str("Swim Slowly").unwrap(),
-                        title: ArrayString::from_str("Love Again").unwrap(),
-                    }),
+                    Keycode::P => AppInput::AppleMedia(audio[audio_index].clone()),
                     Keycode::B => {
                         charging = !charging;
                         AppInput::Battery(BatteryData { charging })
@@ -81,12 +86,44 @@ fn main() -> Result<(), core::convert::Infallible> {
             AppInput::Tick
         };
 
-        app.handle_event(
-            &mut display,
-            start_time.elapsed().as_millis() as u64,
-            app_input,
-        )
-        .unwrap();
+        match app
+            .handle_event(
+                &mut display,
+                start_time.elapsed().as_millis() as u64,
+                app_input,
+            )
+            .unwrap()
+        {
+            // TODO the nested calls to app.handle_event here are really messy
+            Some(AppOutput::MediaControl(MediaControl::NextTrack)) => {
+                audio_index += 1;
+                audio_index %= audio.len();
+                app.handle_event(
+                    &mut display,
+                    start_time.elapsed().as_millis() as u64,
+                    AppInput::AppleMedia(audio[audio_index].clone()),
+                )
+                .unwrap();
+            }
+            Some(AppOutput::MediaControl(MediaControl::PreviousTrack)) => {
+                if audio_index > 0 {
+                    audio_index -= 1;
+                } else {
+                    audio_index = audio.len() - 1;
+                }
+                app.handle_event(
+                    &mut display,
+                    start_time.elapsed().as_millis() as u64,
+                    AppInput::AppleMedia(audio[audio_index].clone()),
+                )
+                .unwrap();
+            }
+            Some(AppOutput::MediaControl(_)) => {
+                // Sim doesn't do anything with this for now
+            }
+            None => { // do nothing
+            }
+        };
     }
 
     Ok(())

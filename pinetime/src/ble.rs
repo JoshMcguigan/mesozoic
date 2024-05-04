@@ -401,7 +401,7 @@ pub async fn task_gatt_client(conn: Connection) {
                                 _ => "unknown",
                             };
 
-                            info!("{}: {}", attribute, value_as_str);
+                            defmt::println!("{}: {}", attribute, value_as_str);
                         } else {
                             info!("invalid utf8 received");
                         }
@@ -421,6 +421,10 @@ pub async fn task_gatt_client(conn: Connection) {
                         .remote_command_write(
                             &(match command {
                                 MediaControl::TogglePlayPause => 2,
+                                MediaControl::NextTrack => 3,
+                                MediaControl::PreviousTrack => 4,
+                                MediaControl::VolumeUp => 5,
+                                MediaControl::VolumeDown => 6,
                             })
                         )
                         .await

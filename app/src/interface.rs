@@ -20,6 +20,7 @@ pub enum AppOutput {
     MediaControl(MediaControl),
 }
 
+#[derive(Clone)]
 pub struct AppleMediaServiceData {
     pub artist: AppleMediaServiceString,
     pub album: AppleMediaServiceString,
@@ -30,6 +31,10 @@ pub type AppleMediaServiceString = arrayvec::ArrayString<ATT_PAYLOAD_MAX_LEN>;
 
 pub enum MediaControl {
     TogglePlayPause,
+    NextTrack,
+    PreviousTrack,
+    VolumeUp,
+    VolumeDown,
 }
 
 pub struct BatteryData {
