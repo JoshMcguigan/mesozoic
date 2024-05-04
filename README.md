@@ -18,7 +18,7 @@ The fastest way to get started with Mesozoic is using the simulator.
 cargo msim
 ```
 
-![simulator](https://github.com/JoshMcguigan/mesozoic/assets/22216761/5c302d33-f818-4104-acf2-88095b7c7cad)
+![simulator](app/snapshots/mesozoic_app::app::tests::init_and_paired.golden.png)
 
 ### Simulator dependencies
 
@@ -36,7 +36,8 @@ cargo mapp-test
 Mesozoic includes some snapshot tests. The snapshots can be updated with:
 
 ```sh
-cp app/snapshots/*{test,golden}.png
+rm app/snapshots/*
+cargo mapp-test
 ```
 
 ## Using Mesozoic on real hardware

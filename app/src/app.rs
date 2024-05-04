@@ -212,3 +212,69 @@ impl App {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    extern crate std;
+
+    use core::str::FromStr;
+
+    use arrayvec::ArrayString;
+    use embedded_graphics::geometry::Size;
+
+    use crate::{
+        interface::{BatteryData, LCD_H, LCD_W},
+        test_infra::{assert_snapshot, function_name, SimDisplay},
+    };
+
+    use super::*;
+
+    #[test]
+    fn init_and_paired() {
+        let test_name = function_name!();
+        assert_eq!(
+            "mesozoic_app::app::tests::init_and_paired", test_name,
+            "this file is referenced from README, so the name cannot change"
+        );
+        let mut display = SimDisplay::new(Size::new(LCD_W as u32, LCD_H as u32));
+
+        let ms_since_boot = 0;
+        let mut app = App::init(&mut display, ms_since_boot).unwrap();
+        app.handle_event(
+            &mut display,
+            ms_since_boot,
+            AppInput::Battery(BatteryData { charging: true }),
+        )
+        .unwrap();
+        app.handle_event(
+            &mut display,
+            ms_since_boot,
+            AppInput::Time(TimeOfDay {
+                hours: 10,
+                minutes: 15,
+                seconds: 01,
+                ..Default::default()
+            }),
+        )
+        .unwrap();
+        app.handle_event(
+            &mut display,
+            ms_since_boot,
+            AppInput::AppleMedia(AppleMediaServiceData {
+                artist: ArrayString::from_str("Rustacean Station").unwrap(),
+                album: ArrayString::from_str("April 28, 2023").unwrap(),
+                title: ArrayString::from_str("Rust Embedded WG").unwrap(),
+            }),
+        )
+        .unwrap();
+        app.handle_event(
+            &mut display,
+            // Using this event to set FPS
+            ms_since_boot + 17,
+            AppInput::Tick,
+        )
+        .unwrap();
+
+        assert_snapshot(test_name, display);
+    }
+}
