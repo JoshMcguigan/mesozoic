@@ -1,12 +1,11 @@
 use core::borrow::Borrow;
 
-use arrayvec::ArrayString;
 use embedded_graphics::draw_target::DrawTarget;
 
 use crate::{
     display::{draw_audio, draw_battery, draw_bg, draw_fps, draw_time},
     interface::{
-        AppInput, AppOutput, AppleMediaServiceData, DisplayColor, MediaControl, TimeOfDay,
+        AppInput, AppOutput, AppleMediaServiceData, DisplayColor, Gesture, MediaControl, TimeOfDay
     },
 };
 
@@ -143,41 +142,15 @@ impl App {
                 None
             }
             AppInput::Touch(touch) => {
-                // TODO replace this with something reasonable
-
-                use core::fmt::Write;
-                let mut x = ArrayString::<512>::new();
-                let mut y = ArrayString::<512>::new();
-                write!(&mut x, "{}", touch.x).unwrap();
-                write!(&mut y, "{}", touch.y).unwrap();
-                self.media = Some(AppleMediaServiceData {
-                    title: x,
-                    artist: y,
-                    album: ArrayString::<512>::new(),
-                });
-
-                // TODO we should only do this after pairing, and when the
-                // touch overlaps with a play/pause button
-                Some(AppOutput::MediaControl(MediaControl::TogglePlayPause))
-
-                // y is displaying horizontal offset something like 0-239, although
-                // i've never seen zero
-                // x is always reporting zero
-
-                // draw_audio(display, match touch.event_type {
-                //     crate::interface::EventType::Down => "down",
-                //     crate::interface::EventType::Contact => "contact",
-                //     crate::interface::EventType::Up => "up",
-                // }, match touch.gesture {
-                //     crate::interface::Gesture::None => "none",
-                //     crate::interface::Gesture::SlideDown => "slide down",
-                //     crate::interface::Gesture::SlideUp => "slide up",
-                //     crate::interface::Gesture::SlideLeft => "slide left",
-                //     crate::interface::Gesture::SlideRight => "slide right",
-                //     crate::interface::Gesture::SingleClick => "single click",
-                //     crate::interface::Gesture::DoubleClick => "double click",
-                //     crate::interface::Gesture::LongPress => "long press",
-                // })
+                // We should only do this after pairing, and when the
+                // touch overlaps with a play/pause button. For now
+                // we check if we have media data, as an indication
+                // we might be paired.
+                if matches!(touch.gesture, Gesture::SingleClick) && self.media.is_some() {
+                    Some(AppOutput::MediaControl(MediaControl::TogglePlayPause))
+                } else {
+                    None
+                }
             }
             AppInput::ButtonPressed => {
                 let new_window = self.active_window.next();
