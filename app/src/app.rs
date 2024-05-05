@@ -5,7 +5,8 @@ use embedded_graphics::draw_target::DrawTarget;
 use crate::{
     display::{draw_audio, draw_battery, draw_bg, draw_fps, draw_time},
     interface::{
-        AppInput, AppOutput, AppleMediaServiceData, DisplayColor, Gesture, MediaControl, TimeOfDay,
+        AppInput, AppOutput, AppleMediaServiceData, BatteryData, DisplayColor, Gesture,
+        MediaControl, TimeOfDay,
     },
 };
 
@@ -13,7 +14,7 @@ pub struct App {
     active_window: ActiveWindow,
     time: TimeState,
     media: Option<AppleMediaServiceData>,
-    charging: bool,
+    battery: BatteryData,
 }
 
 #[derive(Clone, Copy)]
@@ -95,7 +96,12 @@ impl App {
                 previous_ms_since_boot: ms_since_boot,
             },
             media: None,
-            charging: false,
+            // Placeholder battery data - this will be updated within 1 second by
+            // the battery input polling.
+            battery: BatteryData {
+                charging: false,
+                voltage: 3.5,
+            },
         };
 
         // Initialize by drawing the background once - this is a minor
@@ -133,7 +139,7 @@ impl App {
                 None
             }
             AppInput::Battery(e) => {
-                self.charging = e.charging;
+                self.battery = e;
                 None
             }
             AppInput::Time(e) => {
@@ -190,7 +196,7 @@ impl App {
     {
         match self.active_window {
             ActiveWindow::Main => {
-                draw_battery(display, self.charging)?;
+                draw_battery(display, &self.battery)?;
                 draw_time(display, self.time.current_time())?;
                 if let Some(media_data) = self.media.borrow() {
                     draw_audio(display, &media_data.artist, &media_data.title)?;
@@ -243,7 +249,10 @@ mod tests {
         app.handle_event(
             &mut display,
             ms_since_boot,
-            AppInput::Battery(BatteryData { charging: true }),
+            AppInput::Battery(BatteryData {
+                charging: true,
+                voltage: 4.1,
+            }),
         )
         .unwrap();
         app.handle_event(

@@ -7,11 +7,11 @@ use embedded_graphics::{
     mono_font::ascii,
     pixelcolor::WebColors,
     prelude::RgbColor,
-    primitives::{Primitive, PrimitiveStyleBuilder, Triangle},
+    primitives::{Primitive, PrimitiveStyleBuilder, StrokeAlignment, Triangle},
     Drawable,
 };
 
-use crate::interface::{DisplayColor, TimeOfDay, LCD_H, LCD_W};
+use crate::interface::{BatteryData, DisplayColor, TimeOfDay, LCD_H, LCD_W};
 
 pub(crate) fn draw_bg<D>(display: &mut D) -> Result<(), D::Error>
 where
@@ -106,27 +106,59 @@ where
     Ok(())
 }
 
-pub(crate) fn draw_battery<D>(display: &mut D, charging: bool) -> Result<(), D::Error>
+pub(crate) fn draw_battery<D>(display: &mut D, battery_data: &BatteryData) -> Result<(), D::Error>
 where
     D: DrawTarget<Color = DisplayColor>,
 {
-    let fill_color = match charging {
+    let color = match battery_data.charging {
         true => DisplayColor::new(85, 255, 85),
         false => DisplayColor::new(255, 85, 85),
     };
-    let width = 16;
+    let font = ascii::FONT_5X7;
+
+    // The unwrap on the write! is safe because we can tell statically that we've
+    // allocated enough characters to fit this string.
+    const NUM_CHARS: usize = 4;
+    let mut s = ArrayString::<NUM_CHARS>::new();
+    write!(&mut s, "{:1.1}v", battery_data.voltage,).unwrap();
+
+    let outline_stoke = 2;
+    let width = font.character_size.width * NUM_CHARS as u32 + 2 * outline_stoke;
     embedded_graphics::primitives::Rectangle::new(
-        Point::new(LCD_W as i32 - width, 0),
-        Size::new(width as u32, 10),
+        Point::new(LCD_W as i32 - width as i32, 0),
+        Size::new(width as u32, font.character_size.height + 2 * outline_stoke),
     )
     .into_styled(
         PrimitiveStyleBuilder::new()
-            .stroke_width(2)
-            .stroke_color(DisplayColor::CSS_GRAY)
-            .fill_color(fill_color)
+            .stroke_width(outline_stoke)
+            .stroke_alignment(StrokeAlignment::Inside)
+            .stroke_color(color)
             .build(),
     )
-    .draw(display)
+    .draw(display)?;
+
+    // TODO factor these styles out so they aren't defined in multiple places
+    let character_style = embedded_graphics::mono_font::MonoTextStyleBuilder::new()
+        .font(&ascii::FONT_5X7)
+        .text_color(DisplayColor::WHITE)
+        .background_color(DisplayColor::BLACK)
+        .build();
+    let text_style = embedded_graphics::text::TextStyleBuilder::new()
+        .baseline(embedded_graphics::text::Baseline::Top)
+        .build();
+
+    embedded_graphics::text::Text::with_text_style(
+        s.as_str(),
+        Point::new(
+            LCD_W as i32 - width as i32 + outline_stoke as i32,
+            outline_stoke as i32,
+        ),
+        character_style,
+        text_style,
+    )
+    .draw(display)?;
+
+    Ok(())
 }
 
 pub(crate) fn draw_time<D, E>(display: &mut D, time: TimeOfDay) -> Result<(), E>

@@ -25,7 +25,7 @@ async fn main(spawner: Spawner) {
     let p = nrf::init();
 
     unwrap!(spawner.spawn(backlight::task(p.P0_14, p.P0_22, p.P0_23)));
-    unwrap!(spawner.spawn(battery::task(p.P0_12, p.P0_31)));
+    unwrap!(spawner.spawn(battery::task(p.P0_12, p.SAADC, p.P0_31)));
     unwrap!(spawner.spawn(ble::task(ble::init(&spawner).await)));
     unwrap!(spawner.spawn(button::task(p.P0_13, p.P0_15)));
     unwrap!(spawner.spawn(haptics::task(p.P0_16)));

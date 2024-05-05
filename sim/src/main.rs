@@ -37,10 +37,11 @@ fn main() -> Result<(), core::convert::Infallible> {
     .unwrap();
 
     let mut charging = true;
+    let voltage = 4.1;
     app.handle_event(
         &mut display,
         start_time.elapsed().as_millis() as u64,
-        AppInput::Battery(BatteryData { charging }),
+        AppInput::Battery(BatteryData { charging, voltage }),
     )
     .unwrap();
 
@@ -69,7 +70,7 @@ fn main() -> Result<(), core::convert::Infallible> {
                     Keycode::P => AppInput::AppleMedia(audio[audio_index].clone()),
                     Keycode::B => {
                         charging = !charging;
-                        AppInput::Battery(BatteryData { charging })
+                        AppInput::Battery(BatteryData { charging, voltage })
                     }
                     Keycode::LShift => AppInput::ButtonPressed,
                     _ => continue,

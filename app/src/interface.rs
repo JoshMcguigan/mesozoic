@@ -39,6 +39,7 @@ pub enum MediaControl {
 
 pub struct BatteryData {
     pub charging: bool,
+    pub voltage: f32,
 }
 
 #[derive(Default, Clone)]
