@@ -8,17 +8,11 @@ use panic_probe as _;
 use defmt::unwrap;
 use embassy_executor::Spawner;
 
-mod backlight;
-mod battery;
-mod ble;
-mod button;
-mod display;
-mod haptics;
-mod nrf;
-mod tick;
-mod touch;
-
 mod event_loop;
+mod nrf;
+mod tasks;
+
+use tasks::{backlight, battery, ble, button, display, haptics, tick, touch};
 
 #[embassy_executor::main]
 async fn main(spawner: Spawner) {
