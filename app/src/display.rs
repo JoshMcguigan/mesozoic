@@ -7,7 +7,7 @@ use embedded_graphics::{
     mono_font::ascii,
     pixelcolor::WebColors,
     prelude::RgbColor,
-    primitives::{Primitive, PrimitiveStyleBuilder, StrokeAlignment, Triangle},
+    primitives::{Primitive, PrimitiveStyleBuilder, Rectangle, StrokeAlignment, Triangle},
     Drawable,
 };
 
@@ -243,6 +243,27 @@ where
     Ok(())
 }
 
+pub(crate) fn draw_fullscreen_text<D, E>(display: &mut D, text: &str) -> Result<(), E>
+where
+    D: DrawTarget<Color = DisplayColor, Error = E>,
+    E: core::fmt::Debug,
+{
+    // TODO factor these styles out so they aren't defined in multiple places
+    let character_style = embedded_graphics::mono_font::MonoTextStyleBuilder::new()
+        .font(&ascii::FONT_7X14)
+        .text_color(DisplayColor::WHITE)
+        .background_color(DisplayColor::BLACK)
+        .build();
+    let text_style = embedded_text::style::TextBoxStyle::default();
+
+    let bounds = Rectangle::new(Point::zero(), Size::new(LCD_W as u32, LCD_H as u32));
+
+    embedded_text::TextBox::with_textbox_style(text, bounds, character_style, text_style)
+        .draw(display)?;
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     extern crate std;
@@ -263,6 +284,36 @@ mod tests {
         // out the old text.
         draw_audio(&mut display, "long artist", "long title").unwrap();
         draw_audio(&mut display, "artist", "title").unwrap();
+
+        assert_snapshot(test_name, display);
+    }
+
+    #[test]
+    fn fullscreen_text() {
+        let test_name = function_name!();
+        let mut display = SimDisplay::new(Size::new(LCD_W as u32, LCD_H as u32));
+
+        // The expected behavior here is to display as much content as can fit on the
+        // display. Any content which doesn't fit will overflow off the bottom.
+        draw_fullscreen_text(
+            &mut display,
+            "1 first line
+2 really long line that needs to split to new line
+3 more text wow so much text wrapping wrapping wrapping
+4 all the way down
+5 more text wow so much text wrapping wrapping wrapping
+6 all the way down
+7 more text wow so much text wrapping wrapping wrapping
+8 all the way down
+9 more text wow so much text wrapping wrapping wrapping
+0 all the way down
+a more text wow so much text wrapping wrapping wrapping
+b all the way down
+c more text wow so much text wrapping wrapping wrapping
+d all the way down
+e more text wow so much text wrapping wrapping wrapping",
+        )
+        .unwrap();
 
         assert_snapshot(test_name, display);
     }

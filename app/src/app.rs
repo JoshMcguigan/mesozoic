@@ -3,7 +3,7 @@ use core::borrow::Borrow;
 use embedded_graphics::draw_target::DrawTarget;
 
 use crate::{
-    display::{draw_audio, draw_battery, draw_bg, draw_fps, draw_time},
+    display::{draw_audio, draw_battery, draw_bg, draw_fps, draw_fullscreen_text, draw_time},
     interface::{
         AppInput, AppOutput, AppleMediaServiceData, BatteryData, DisplayColor, Gesture,
         MediaControl, TimeOfDay,
@@ -15,6 +15,7 @@ pub struct App {
     time: TimeState,
     media: Option<AppleMediaServiceData>,
     battery: BatteryData,
+    critical_error: Option<&'static str>,
 }
 
 #[derive(Clone, Copy)]
@@ -102,6 +103,7 @@ impl App {
                 charging: false,
                 voltage: 3.5,
             },
+            critical_error: None,
         };
 
         // Initialize by drawing the background once - this is a minor
@@ -175,11 +177,20 @@ impl App {
             }
             AppInput::ButtonPressed => {
                 let new_window = self.active_window.next();
+                // TODO create switch_window method to always clear bg
+                draw_bg(display)?;
                 self.active_window = new_window;
                 None
             }
             AppInput::Tick => {
                 // this just triggers a re-draw
+                None
+            }
+            AppInput::CriticalError(critial_error) => {
+                self.critical_error = Some(critial_error);
+                // TODO create switch_window method to always clear bg
+                draw_bg(display)?;
+                self.active_window = ActiveWindow::Debug;
                 None
             }
         };
@@ -203,8 +214,9 @@ impl App {
                 }
             }
             ActiveWindow::Debug => {
-                // nothing for now
-                draw_bg(display)?;
+                if let Some(error_message) = self.critical_error {
+                    draw_fullscreen_text(display, error_message)?;
+                }
             }
         }
 

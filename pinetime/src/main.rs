@@ -3,13 +3,13 @@
 
 use defmt_rtt as _; // global logger
 use embassy_nrf as _; // time driver
-use panic_probe as _;
 
 use defmt::unwrap;
 use embassy_executor::Spawner;
 
 mod event_loop;
 mod nrf;
+mod panic_handler;
 mod tasks;
 
 use tasks::{backlight, battery, ble, button, display, haptics, tick, touch};
@@ -27,5 +27,5 @@ async fn main(spawner: Spawner) {
     unwrap!(spawner.spawn(touch::task(p.P0_10, p.P0_28, p.TWISPI0, p.P0_06, p.P0_07)));
 
     let display = display::create(p.P0_18, p.P0_25, p.TWISPI1, p.P0_02, p.P0_04, p.P0_03);
-    event_loop::run(display).await;
+    event_loop::run(display, panic_handler::get_message()).await;
 }

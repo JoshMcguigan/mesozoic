@@ -31,8 +31,17 @@ pub static MEDIA_CONTROL: embassy_sync::channel::Channel<
     5,
 > = embassy_sync::channel::Channel::new();
 
-pub async fn run(mut display: SpiDisplay) -> ! {
+pub async fn run(mut display: SpiDisplay, panic_message: Option<&'static str>) -> ! {
     let mut app = App::init(&mut display, Instant::now().as_millis()).unwrap();
+
+    if let Some(panic_message) = panic_message {
+        // TODO we need some generic mechanism for handling the returned values from handle_event
+        let _ = app.handle_event(
+            &mut display,
+            Instant::now().as_millis(),
+            AppInput::CriticalError(panic_message),
+        );
+    }
 
     loop {
         let event = match select(

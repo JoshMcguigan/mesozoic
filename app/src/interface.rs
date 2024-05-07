@@ -1,3 +1,5 @@
+use core::str;
+
 pub type DisplayColor = embedded_graphics::pixelcolor::Rgb565;
 
 pub const LCD_W: u16 = 240;
@@ -14,6 +16,7 @@ pub enum AppInput {
     /// TODO see future AppOutput::TickRate
     /// app will request higher tick rate when the display/backlight is on, for example
     Tick,
+    CriticalError(&'static str),
 }
 
 pub enum AppOutput {

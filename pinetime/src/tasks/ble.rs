@@ -305,53 +305,53 @@ const TRACK_ATTRIBUTE_ID_TITLE: u8 = 2;
 #[embassy_executor::task]
 pub async fn task_gatt_client(conn: Connection) {
     loop {
-        let client: BatteryServiceClient = unwrap!(gatt_client::discover(&conn).await);
-        let e = client.battery_level_read().await;
+        loop {
+            let client: BatteryServiceClient = unwrap!(gatt_client::discover(&conn).await);
+            let e = client.battery_level_read().await;
+            info!("response {:?}", e);
+
+            if e.is_ok() {
+                break;
+            }
+        }
+
+        let client: TimeServiceClient = unwrap!(gatt_client::discover(&conn).await);
+        let e = client.current_time_read().await;
         info!("response {:?}", e);
 
-        if e.is_ok() {
-            break;
+        // iOS doesn't seem to send many notifications for the time service, so
+        // for now we only send along the first value received rather than subscribe.
+        TIME_SERVICE_DATA.signal(unwrap!(e));
+
+        let client: AppleMediaServiceClient = unwrap!(gatt_client::discover(&conn).await);
+
+        client.remote_command_cccd_write(true).await.unwrap();
+        client.entity_update_cccd_write(true).await.unwrap();
+
+        let mut a = [0; ATT_PAYLOAD_MAX_LEN];
+        a[0] = ENTITY_ID_TRACK;
+        a[1] = TRACK_ATTRIBUTE_ID_ARTIST;
+        a[2] = TRACK_ATTRIBUTE_ID_ALBUM;
+        a[3] = TRACK_ATTRIBUTE_ID_TITLE;
+        let e = client.entity_update_write(&MyVec { data: a, len: 4 }).await;
+        info!("entity_update write response {:?}", e);
+        unwrap!(e);
+
+        let mut artist = AppleMediaServiceString::new();
+        let mut album = AppleMediaServiceString::new();
+        let mut title = AppleMediaServiceString::new();
+
+        // flush media control, because we don't want to act on commands received before pairing
+        loop {
+            if let Err(_) = MEDIA_CONTROL.try_receive() {
+                break;
+            }
         }
-    }
 
-    let client: TimeServiceClient = unwrap!(gatt_client::discover(&conn).await);
-    let e = client.current_time_read().await;
-    info!("response {:?}", e);
+        // There is an issue here where iOS is either not sending, or we are missing, the initial
+        // media information when we first connect. Then on further song changes, if only the title
+        // changes, iOS only sends the changed data.
 
-    // iOS doesn't seem to send many notifications for the time service, so
-    // for now we only send along the first value received rather than subscribe.
-    TIME_SERVICE_DATA.signal(unwrap!(e));
-
-    let client: AppleMediaServiceClient = unwrap!(gatt_client::discover(&conn).await);
-
-    client.remote_command_cccd_write(true).await.unwrap();
-    client.entity_update_cccd_write(true).await.unwrap();
-
-    let mut a = [0; ATT_PAYLOAD_MAX_LEN];
-    a[0] = ENTITY_ID_TRACK;
-    a[1] = TRACK_ATTRIBUTE_ID_ARTIST;
-    a[2] = TRACK_ATTRIBUTE_ID_ALBUM;
-    a[3] = TRACK_ATTRIBUTE_ID_TITLE;
-    let e = client.entity_update_write(&MyVec { data: a, len: 4 }).await;
-    info!("entity_update write response {:?}", e);
-    unwrap!(e);
-
-    let mut artist = AppleMediaServiceString::new();
-    let mut album = AppleMediaServiceString::new();
-    let mut title = AppleMediaServiceString::new();
-
-    // flush media control, because we don't want to act on commands received before pairing
-    loop {
-        if let Err(_) = MEDIA_CONTROL.try_receive() {
-            break;
-        }
-    }
-
-    // There is an issue here where iOS is either not sending, or we are missing, the initial
-    // media information when we first connect. Then on further song changes, if only the title
-    // changes, iOS only sends the changed data.
-
-    loop {
         let notifications = gatt_client::run(&conn, &client, |event| match event {
             AppleMediaServiceClientEvent::EntityUpdateNotification(val) => {
                 let entity_id = val.data[0];

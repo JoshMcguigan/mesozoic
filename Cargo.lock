@@ -606,6 +606,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "embedded-text"
+version = "0.7.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5899badc344754f785450bd64c04e03f6ceaacb5f3ae972fc1d93ae8473f4689"
+dependencies = [
+ "az",
+ "embedded-graphics",
+ "object-chain",
+]
+
+[[package]]
 name = "fixed"
 version = "1.27.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -835,6 +846,7 @@ dependencies = [
  "arrayvec",
  "embedded-graphics",
  "embedded-graphics-simulator",
+ "embedded-text",
 ]
 
 [[package]]
@@ -856,7 +868,6 @@ dependencies = [
  "mipidsi",
  "nrf-softdevice",
  "nrf-softdevice-s132",
- "panic-probe",
  "static_cell",
 ]
 
@@ -1137,6 +1148,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "object-chain"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "41af26158b0f5530f7b79955006c2727cd23d0d8e7c3109dc316db0a919784dd"
+
+[[package]]
 name = "ouroboros"
 version = "0.17.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1158,16 +1175,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.60",
-]
-
-[[package]]
-name = "panic-probe"
-version = "0.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "aa6fa5645ef5a760cd340eaa92af9c1ce131c8c09e7f8926d8a24b59d26652b9"
-dependencies = [
- "cortex-m",
- "defmt",
 ]
 
 [[package]]
